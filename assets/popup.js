@@ -38,6 +38,13 @@ const STR = {
     digestHint: "Целевые цены всегда приходят сразу.",
     showRegular: "Показывать обычную цену",
     chartsSection: "Графики",
+    foldersAll: "Все", folderNone: "Без папки", newFolder: "Новая папка", folderName: "Название папки",
+    rename: "Переименовать", deleteFolder: "Удалить папку", moveTo: "Переместить в папку", cancel: "Отмена",
+    dragHint: "Перетащите на папку",
+    folderEmpty: "В этой папке пока нет товаров. Перетащите товар (⠿) на папку или выберите папку в карточке товара.",
+    confirmDeleteFolder: (n, c) => `Удалить папку «${n}»? Товары (${c}) останутся в списке без папки.`,
+    errNameRequired: "Введите название папки", errNameLong: "Название слишком длинное (максимум 40 символов)",
+    errNameDup: "Папка с таким названием уже есть", errTooMany: "Слишком много папок",
   },
   en: {
     subtitle: "Local price tracking",
@@ -78,6 +85,13 @@ const STR = {
     digestHint: "Target-price alerts always arrive immediately.",
     showRegular: "Show regular price",
     chartsSection: "Charts",
+    foldersAll: "All", folderNone: "Ungrouped", newFolder: "New folder", folderName: "Folder name",
+    rename: "Rename", deleteFolder: "Delete folder", moveTo: "Move to folder", cancel: "Cancel",
+    dragHint: "Drag onto a folder",
+    folderEmpty: "This folder has no products yet. Drag a product (⠿) onto a folder, or pick a folder in the product card.",
+    confirmDeleteFolder: (n, c) => `Delete the folder “${n}”? Its ${c} product(s) stay in your list as ungrouped.`,
+    errNameRequired: "Enter a folder name", errNameLong: "The name is too long (40 characters max)",
+    errNameDup: "A folder with this name already exists", errTooMany: "Too many folders",
   },
 };
 
@@ -89,7 +103,7 @@ const DEFAULT_SIZE = { w: 440, h: 320 };
 
 const state = {
   lang: "ru", view: "list", products: [], settings: { ...DEFAULTS },
-  insights: null, health: {},
+  insights: null, health: {}, folders: [], folder: "all", folderEdit: null, folderMsg: null,
   q: "", sort: "recent", filter: "all", open: new Set(), busy: new Set(), refreshingAll: false, msg: null,
 };
 const chartPrefs = new Map(); // productId -> { range, kind }
@@ -134,6 +148,7 @@ const dropPct = (p) => (p.previousPrice && p.previousPrice > p.currentPrice ? (p
 function visibleProducts() {
   const q = state.q.trim().toLowerCase();
   const list = state.products.filter((p) => {
+    if (state.folder === "none" ? p.folderId : state.folder !== "all" && p.folderId !== state.folder) return false;
     if (q && !p.title.toLowerCase().includes(q)) return false;
     switch (state.filter) {
       case "ozon": return !p.store;
@@ -160,6 +175,8 @@ function visibleProducts() {
 async function loadProducts() {
   try { state.products = await send("GET_PRODUCTS"); } catch { state.products = []; }
   try { state.insights = await send("GET_INSIGHTS"); } catch { state.insights = null; }
+  try { state.folders = (await send("GET_FOLDERS")) ?? []; } catch { state.folders = []; }
+  if (state.folder !== "all" && state.folder !== "none" && !state.folders.some((f) => f.id === state.folder)) state.folder = "all";
   try { state.health = (await chrome.storage.local.get("health")).health ?? {}; } catch { state.health = {}; }
 }
 
@@ -287,6 +304,90 @@ function summaryBox() {
   return h("div", { class: "summary" }, t().savings(money(sm.totalDrop), sm.dropped));
 }
 
+/* ---------- folders ---------- */
+const folderCount = (id) => (id === "all" ? state.products.length : id === "none" ? state.products.filter((p) => !p.folderId).length : state.products.filter((p) => p.folderId === id).length);
+
+function folderError(e) {
+  const m = String(e?.message ?? e);
+  if (m.includes("name is required")) return t().errNameRequired;
+  if (m.includes("too long")) return t().errNameLong;
+  if (m.includes("already exists")) return t().errNameDup;
+  if (m.includes("Too many")) return t().errTooMany;
+  return m;
+}
+
+async function saveFolderEdit(name) {
+  try {
+    if (state.folderEdit === "new") state.folder = (await send("CREATE_FOLDER", { name })).id;
+    else await send("RENAME_FOLDER", { id: state.folderEdit, name });
+    state.folderEdit = null; state.folderMsg = null;
+  } catch (e) { state.folderMsg = folderError(e); }
+  await reload();
+}
+
+const moveProduct = (id, folderId) => act(id, () => send("SET_PRODUCT_FOLDER", { id, folderId }));
+
+function folderSelect(p, busy) {
+  if (!state.folders.length) return null;
+  const s = h("select", { class: "folder-select", disabled: busy, title: t().moveTo, "aria-label": t().moveTo },
+    h("option", { value: "", selected: !p.folderId }, `📁 ${t().folderNone}`),
+    state.folders.map((f) => h("option", { value: f.id, selected: f.id === p.folderId }, `📁 ${f.name}`)));
+  s.addEventListener("change", () => moveProduct(p.id, s.value || null));
+  return s;
+}
+
+function foldersBar() {
+  const has = state.folders.length > 0;
+  const chip = (id, label, droppable) => {
+    const b = h("button", { class: `chip${state.folder === id ? " on" : ""}`, type: "button", onclick: () => { state.folder = id; state.folderEdit = null; state.folderMsg = null; render(); } },
+      `${label} `, h("span", { class: "count" }, folderCount(id)));
+    if (droppable) {
+      b.addEventListener("dragover", (e) => { e.preventDefault(); b.classList.add("drop"); });
+      b.addEventListener("dragleave", () => b.classList.remove("drop"));
+      b.addEventListener("drop", (e) => {
+        e.preventDefault(); b.classList.remove("drop");
+        const pid = e.dataTransfer.getData("text/plain");
+        if (pid) moveProduct(pid, id === "none" ? null : id);
+      });
+    }
+    return b;
+  };
+  const chips = [];
+  if (has) {
+    chips.push(chip("all", t().foldersAll, false), chip("none", t().folderNone, true));
+    for (const f of state.folders) chips.push(chip(f.id, f.name, true));
+  }
+  chips.push(h("button", { class: "chip add", type: "button", title: t().newFolder, onclick: () => { state.folderEdit = "new"; state.folderMsg = null; render(); } }, has ? "＋" : `＋ ${t().newFolder}`));
+  const wrap = h("div", { class: "folders" }, h("div", { class: "chips" }, chips));
+  const sel = state.folders.find((f) => f.id === state.folder);
+  if (sel && state.folderEdit === null) {
+    wrap.append(h("div", { class: "folder-actions" },
+      h("button", { class: "btn plain", type: "button", onclick: () => { state.folderEdit = sel.id; state.folderMsg = null; render(); } }, `✎ ${t().rename}`),
+      h("button", { class: "btn danger", type: "button", onclick: async () => {
+        if (!confirm(t().confirmDeleteFolder(sel.name, folderCount(sel.id)))) return;
+        try { await send("DELETE_FOLDER", { id: sel.id }); } catch { /* reload shows the real state */ }
+        state.folder = "all";
+        await reload();
+      } }, `🗑 ${t().deleteFolder}`)));
+  }
+  if (state.folderEdit !== null) {
+    const cur = state.folders.find((f) => f.id === state.folderEdit);
+    const input = h("input", { type: "text", maxLength: 40, placeholder: t().folderName, value: cur?.name ?? "", "aria-label": t().folderName });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") saveFolderEdit(input.value);
+      else if (e.key === "Escape") { state.folderEdit = null; state.folderMsg = null; render(); }
+    });
+    wrap.append(h("div", { class: "folder-edit" }, input,
+      h("button", { class: "btn", type: "button", onclick: () => saveFolderEdit(input.value) }, t().save),
+      h("button", { class: "btn plain", type: "button", onclick: () => { state.folderEdit = null; state.folderMsg = null; render(); } }, t().cancel)));
+    setTimeout(() => { input.focus(); input.select(); });
+    if (state.folderMsg) wrap.append(h("div", { class: "msg bad" }, state.folderMsg));
+  }
+  return wrap;
+}
+
+const emptyText = () => (state.products.length ? (state.folder !== "all" && !state.q.trim() && state.filter === "all" ? t().folderEmpty : t().noMatch) : t().empty);
+
 function card(p) {
   const status = statusOf(p), busy = state.busy.has(p.id), paused = p.trackingStatus === "paused";
   const delta = p.previousPrice && p.previousPrice !== p.currentPrice ? p.currentPrice - p.previousPrice : 0;
@@ -301,6 +402,8 @@ function card(p) {
       img ? h("img", { src: img, alt: "", referrerPolicy: "no-referrer" }) : null,
       h("div", { class: "card-body" },
         h("div", { class: "title-row" },
+          state.folders.length ? h("span", { class: "drag", draggable: true, title: t().dragHint, "aria-label": t().dragHint,
+            ondragstart: (e) => { e.dataTransfer.setData("text/plain", p.id); e.dataTransfer.effectAllowed = "move"; } }, "⠿") : null,
           h("a", { href: p.canonicalUrl ?? p.url, target: "_blank", rel: "noopener noreferrer", title: p.title }, p.title),
           h("span", { class: "status" }, p.store === "wb" ? "WB" : p.store === "ym" ? "YM" : "Ozon"),
           h("span", { class: `status ${status}` }, t().st[status])),
@@ -329,7 +432,8 @@ function card(p) {
       h("button", { class: "btn", disabled: busy, onclick: () => act(p.id, () => send("REFRESH_PRODUCT", { id: p.id })) }, p.trackingStatus === "error" ? t().retry : t().refresh),
       h("button", { class: "btn plain", disabled: busy, onclick: () => act(p.id, () => send("PAUSE_PRODUCT", { id: p.id, paused: !paused })) }, paused ? t().resume : t().pause),
       h("button", { class: "btn plain", onclick: () => { state.open.has(p.id) ? state.open.delete(p.id) : state.open.add(p.id); render(); } }, t().chart),
-      h("button", { class: "btn danger", disabled: busy, onclick: () => { if (confirm(t().confirmRemove)) act(p.id, () => send("UNTRACK_PRODUCT", { id: p.id })); } }, t().remove)),
+      h("button", { class: "btn danger", disabled: busy, onclick: () => { if (confirm(t().confirmRemove)) act(p.id, () => send("UNTRACK_PRODUCT", { id: p.id })); } }, t().remove),
+      folderSelect(p, busy)),
     chartOpen ? chartBox : null);
   if (chartOpen) buildChart(p, chartBox);
   return el;
@@ -348,13 +452,14 @@ function listView() {
     state.settings.globalPause ? h("div", { class: "banner" }, t().globalPaused) : null,
     healthBanners(),
     summaryBox(),
+    foldersBar(),
     h("div", { class: "toolbar" }, searchInput,
       mkSelect(t().filter, state.filter, (v) => { state.filter = v; renderList(); }),
       mkSelect(t().sort, state.sort, (v) => { state.sort = v; renderList(); })),
     listBox);
   wrap._fill = () => {
     const items = visibleProducts();
-    listBox.replaceChildren(...(items.length ? items.map(card) : [h("div", { class: "empty" }, state.products.length ? t().noMatch : t().empty)]));
+    listBox.replaceChildren(...(items.length ? items.map(card) : [h("div", { class: "empty" }, emptyText())]));
   };
   wrap._fill();
   return wrap;
@@ -364,7 +469,7 @@ function renderList() {
   const box = document.getElementById("list");
   if (!box) return render();
   const items = visibleProducts();
-  box.replaceChildren(...(items.length ? items.map(card) : [h("div", { class: "empty" }, state.products.length ? t().noMatch : t().empty)]));
+  box.replaceChildren(...(items.length ? items.map(card) : [h("div", { class: "empty" }, emptyText())]));
 }
 
 /* ---------- settings ---------- */

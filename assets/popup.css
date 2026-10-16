@@ -68,3 +68,17 @@ header p{margin:3px 0 0;color:#68758a;font-size:12px}
 .summary{background:#e6f8ed;color:#14783a;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;margin-bottom:10px}
 .pill.copy{cursor:pointer}
 .toggle{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#3a465a;margin-left:auto;cursor:pointer}
+.folders{margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid #d9e0ec;background:#fff;color:#3a465a;border-radius:14px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip .count{color:#68758a;font-weight:700}
+.chip.on{background:#005bff;border-color:#005bff;color:#fff}
+.chip.on .count{color:#cfe0ff}
+.chip.add{background:#e8efff;border-color:#e8efff;color:#005bff}
+.chip.drop{outline:2px dashed #005bff;outline-offset:1px}
+.folder-actions{display:flex;gap:6px;margin-top:8px}
+.folder-edit{display:flex;gap:6px;margin-top:8px}
+.folder-edit input{flex:1;min-width:0;border:1px solid #d9e0ec;border-radius:9px;padding:6px 8px}
+.folders .msg{margin-top:6px}
+.drag{cursor:grab;color:#8a96ab;font-size:15px;line-height:1.2;user-select:none;flex:none}
+.folder-select{border:1px solid #d9e0ec;border-radius:9px;padding:5px 6px;font-size:12px;background:#fff;max-width:150px}
