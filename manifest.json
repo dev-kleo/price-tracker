@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "version": "2.2.2",
+  "description": "__MSG_extDescription__",
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "permissions": [
+    "alarms",
+    "notifications",
+    "storage",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://www.ozon.ru/*",
+    "https://ozon.ru/*",
+    "https://www.wildberries.ru/*",
+    "https://wildberries.ru/*",
+    "https://market.yandex.ru/*"
+  ],
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "__MSG_extName__",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.ozon.ru/*",
+        "https://ozon.ru/*"
+      ],
+      "js": [
+        "assets/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.wildberries.ru/*",
+        "https://wildberries.ru/*"
+      ],
+      "js": [
+        "assets/wb-content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://market.yandex.ru/*"
+      ],
+      "js": [
+        "assets/ym-content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "default_locale": "en"
+}
