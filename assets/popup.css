@@ -82,3 +82,20 @@ header p{margin:3px 0 0;color:#68758a;font-size:12px}
 .folders .msg{margin-top:6px}
 .drag{cursor:grab;color:#8a96ab;font-size:15px;line-height:1.2;user-select:none;flex:none}
 .folder-select{border:1px solid #d9e0ec;border-radius:9px;padding:5px 6px;font-size:12px;background:#fff;max-width:150px}
+.chipgroup{display:inline-flex}
+.chipgroup .chip:first-child{border-radius:14px 0 0 14px;border-right:0}
+.chip.chart-btn{border-radius:0 14px 14px 0;padding:5px 8px}
+.group-title{font-size:15px;margin:0 0 8px}
+.group-chart svg{width:100%;height:auto;display:block;margin-top:4px}
+.chart-controls .sep{width:1px;background:#d9e0ec;margin:0 2px;align-self:stretch}
+.legend-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#68758a;margin:8px 0 4px}
+.legend-actions{display:inline-flex;gap:10px}
+.linkbtn{border:0;background:none;color:#005bff;font-size:11px;font-weight:700;cursor:pointer;padding:0}
+.legend-list{display:grid;gap:4px;max-height:170px;overflow:auto}
+.legend-item{display:flex;align-items:center;gap:8px;border:1px solid #e3e8f1;background:#fff;border-radius:9px;padding:5px 8px;font-size:12px;cursor:pointer;text-align:left;width:100%}
+.legend-item i{width:10px;height:10px;border-radius:3px;flex:none}
+.legend-item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legend-item .val{font-weight:700;color:#3a465a;flex:none}
+.legend-item.off{opacity:.45}
+.legend-item.off .name{text-decoration:line-through}
+.legend-head{flex-wrap:wrap}

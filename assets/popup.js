@@ -45,6 +45,13 @@ const STR = {
     confirmDeleteFolder: (n, c) => `Удалить папку «${n}»? Товары (${c}) останутся в списке без папки.`,
     errNameRequired: "Введите название папки", errNameLong: "Название слишком длинное (максимум 40 символов)",
     errNameDup: "Папка с таким названием уже есть", errTooMany: "Слишком много папок",
+    groupChart: "График группы", groupBtn: "График группы", modeAbs: "Цены, ₽", modeNorm: "Нормализовать (%)",
+    normHint: "Нормализация: изменение цены в % от первой отслеживаемой цены каждого товара.",
+    groupEmpty: "В этой папке пока нет товаров. Добавьте товары в папку, чтобы увидеть общий график.",
+    groupSingle: "В папке один товар — добавьте ещё, чтобы сравнивать цены.",
+    groupAllHidden: "Все линии скрыты. Нажмите на товар в списке ниже, чтобы показать его.",
+    showAll: "Показать все", hideAll: "Скрыть все", legendTip: "Нажмите, чтобы скрыть или показать линию",
+    productsN: (n) => `Товаров: ${n}`, dashedNote: "пунктир — цена без карты",
   },
   en: {
     subtitle: "Local price tracking",
@@ -92,6 +99,13 @@ const STR = {
     confirmDeleteFolder: (n, c) => `Delete the folder “${n}”? Its ${c} product(s) stay in your list as ungrouped.`,
     errNameRequired: "Enter a folder name", errNameLong: "The name is too long (40 characters max)",
     errNameDup: "A folder with this name already exists", errTooMany: "Too many folders",
+    groupChart: "Group chart", groupBtn: "Group chart", modeAbs: "Prices, ₽", modeNorm: "Normalize (%)",
+    normHint: "Normalize: price change in % from each product's first tracked price.",
+    groupEmpty: "This folder has no products yet. Add products to the folder to see a combined chart.",
+    groupSingle: "Only one product in this folder: add more to compare prices.",
+    groupAllHidden: "All lines are hidden. Click a product in the list below to show it.",
+    showAll: "Show all", hideAll: "Hide all", legendTip: "Click to hide or show this line",
+    productsN: (n) => `Products: ${n}`, dashedNote: "dashed line: price without card",
   },
 };
 
@@ -103,7 +117,7 @@ const DEFAULT_SIZE = { w: 440, h: 320 };
 
 const state = {
   lang: "ru", view: "list", products: [], settings: { ...DEFAULTS },
-  insights: null, health: {}, folders: [], folder: "all", folderEdit: null, folderMsg: null,
+  insights: null, health: {}, folders: [], folder: "all", folderEdit: null, folderMsg: null, groupFolder: null, groupData: null,
   q: "", sort: "recent", filter: "all", open: new Set(), busy: new Set(), refreshingAll: false, msg: null,
 };
 const chartPrefs = new Map(); // productId -> { range, kind }
@@ -355,13 +369,17 @@ function foldersBar() {
   const chips = [];
   if (has) {
     chips.push(chip("all", t().foldersAll, false), chip("none", t().folderNone, true));
-    for (const f of state.folders) chips.push(chip(f.id, f.name, true));
+    for (const f of state.folders) {
+      chips.push(h("span", { class: "chipgroup" }, chip(f.id, f.name, true),
+        h("button", { class: "chip chart-btn", type: "button", title: t().groupBtn, "aria-label": `${t().groupBtn}: ${f.name}`, onclick: () => openGroup(f.id) }, "📈")));
+    }
   }
   chips.push(h("button", { class: "chip add", type: "button", title: t().newFolder, onclick: () => { state.folderEdit = "new"; state.folderMsg = null; render(); } }, has ? "＋" : `＋ ${t().newFolder}`));
   const wrap = h("div", { class: "folders" }, h("div", { class: "chips" }, chips));
   const sel = state.folders.find((f) => f.id === state.folder);
   if (sel && state.folderEdit === null) {
     wrap.append(h("div", { class: "folder-actions" },
+      h("button", { class: "btn", type: "button", onclick: () => openGroup(sel.id) }, `📈 ${t().groupBtn}`),
       h("button", { class: "btn plain", type: "button", onclick: () => { state.folderEdit = sel.id; state.folderMsg = null; render(); } }, `✎ ${t().rename}`),
       h("button", { class: "btn danger", type: "button", onclick: async () => {
         if (!confirm(t().confirmDeleteFolder(sel.name, folderCount(sel.id)))) return;
@@ -534,22 +552,166 @@ function settingsView() {
       state.msg ? h("div", { class: `msg${state.msg.bad ? " bad" : ""}` }, state.msg.text) : null));
 }
 
+/* ---------- group chart ---------- */
+const GROUP_COLORS = ["#005bff", "#e8590c", "#2f9e44", "#9c36b5", "#c92a2a", "#0c8599", "#f08c00", "#5f3dc4", "#364fc7", "#868e96"];
+const groupPrefs = { range: 90, mode: "abs", hidden: new Set() };
+
+function openGroup(id) {
+  state.view = "group"; state.groupFolder = id; state.groupData = null; groupPrefs.hidden = new Set();
+  render();
+}
+
+async function loadGroupData(folderId) {
+  const items = state.products.filter((p) => p.folderId === folderId);
+  const histories = await Promise.all(items.map((p) => send("GET_HISTORY", { productId: p.id, since: 0 }).catch(() => [])));
+  return items.map((p, i) => ({ p, history: histories[i] ?? [], color: GROUP_COLORS[i % GROUP_COLORS.length] }));
+}
+
+// One line per product (plus a dashed "without card" line for Ozon Card products when enabled).
+function groupSeries(entries) {
+  const now = Date.now();
+  const start = groupPrefs.range ? now - groupPrefs.range * DAY : 0;
+  const out = [];
+  for (const { p, history, color } of entries) {
+    const isCard = p.historyPriceKind === "ozon_card";
+    const lines = [{ kind: isCard ? "ozon_card" : "unknown", current: p.currentPrice, regular: false }];
+    if (isCard && state.settings.showRegularPrice) lines.push({ kind: "unknown", current: p.regularPrice, regular: true });
+    for (const ln of lines) {
+      const own = history.filter((x) => (x.priceKind ?? "unknown") === ln.kind).sort((a, b) => a.timestamp - b.timestamp);
+      if (ln.regular && !own.length) continue;
+      // Extend to "now" so every line reaches the right edge and fresh products still show up.
+      const full = [...own];
+      if (ln.current && (!full.length || now - full.at(-1).timestamp > 6e4)) full.push({ timestamp: now, price: ln.current });
+      if (!full.length) continue;
+      const base = full[0].price; // first tracked price, used by "Normalize"
+      let pts = full.filter((x) => x.timestamp >= start);
+      const before = start ? full.filter((x) => x.timestamp < start).at(-1) : null;
+      if (before) pts = [{ timestamp: start, price: before.price, synthetic: true }, ...pts];
+      if (!pts.length) continue;
+      out.push({ pid: p.id, name: p.title, color, dashed: ln.regular, base, pts });
+    }
+  }
+  return out;
+}
+
+const pctText = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0)}%`;
+
+function drawGroup(box, entries) {
+  const prefs = groupPrefs;
+  chartBoxes.set("group", { box, refresh: () => drawGroup(box, entries) });
+  box.replaceChildren();
+  if (!entries.length) { box.append(h("div", { class: "note" }, t().groupEmpty)); return; }
+
+  const hasCard = entries.some((e) => e.p.historyPriceKind === "ozon_card");
+  const redraw = () => drawGroup(box, entries);
+  box.append(h("div", { class: "chart-controls" },
+    [[30, t().range30], [90, t().range90], [0, t().rangeAll]].map(([r, label]) =>
+      h("button", { class: `btn plain${prefs.range === r ? " on" : ""}`, type: "button", onclick: () => { prefs.range = r; redraw(); } }, label)),
+    h("span", { class: "sep" }),
+    [["abs", t().modeAbs], ["pct", t().modeNorm]].map(([m, label]) =>
+      h("button", { class: `btn plain${prefs.mode === m ? " on" : ""}`, type: "button", onclick: () => { prefs.mode = m; redraw(); } }, label)),
+    hasCard ? h("label", { class: "toggle" },
+      h("input", { type: "checkbox", checked: state.settings.showRegularPrice, onchange: (e) => { saveSettings({ showRegularPrice: e.target.checked }).then(rebuildCharts); } }),
+      t().showRegular) : null));
+  if (prefs.mode === "pct") box.append(h("div", { class: "since" }, t().normHint));
+
+  const series = groupSeries(entries).filter((s) => !prefs.hidden.has(s.pid));
+  const val = (s, price) => (prefs.mode === "pct" ? (price / s.base - 1) * 100 : price);
+  const all = series.flatMap((s) => s.pts.map((x) => ({ ...x, v: val(s, x.price) })));
+
+  if (!all.length) box.append(h("div", { class: "note" }, t().groupAllHidden));
+  else {
+    const W = 400, H = 230, L = 52, R = 10, T = 12, B = 22;
+    const minX = Math.min(...all.map((x) => x.timestamp)), maxX = Math.max(...all.map((x) => x.timestamp));
+    let minY = Math.min(...all.map((x) => x.v)), maxY = Math.max(...all.map((x) => x.v));
+    if (prefs.mode === "pct") { minY = Math.min(minY, 0); maxY = Math.max(maxY, 0); }
+    const pad = (maxY - minY) * 0.08 || 1;
+    minY -= pad; maxY += pad;
+    const px = (x) => L + ((x - minX) / (maxX - minX || 1)) * (W - L - R);
+    const py = (y) => T + (1 - (y - minY) / (maxY - minY)) * (H - T - B);
+    const NS = "http://www.w3.org/2000/svg";
+    const el = (name, attrs, text) => {
+      const n = document.createElementNS(NS, name);
+      for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+      if (text !== undefined) n.textContent = text;
+      return n;
+    };
+    const fmtY = prefs.mode === "pct" ? pctText : (v) => money(Math.round(v));
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": t().groupChart });
+    for (let i = 0; i <= 4; i++) {
+      const v = minY + ((maxY - minY) * i) / 4, y = py(v);
+      svg.append(el("line", { x1: L, x2: W - R, y1: y, y2: y, stroke: "#e3e8f1", "stroke-width": 1 }));
+      svg.append(el("text", { x: L - 5, y: y + 3, "font-size": 9, fill: "#68758a", "text-anchor": "end" }, fmtY(v)));
+    }
+    if (prefs.mode === "pct") svg.append(el("line", { x1: L, x2: W - R, y1: py(0), y2: py(0), stroke: "#8a96ab", "stroke-width": 1, "stroke-dasharray": "3 3" }));
+    for (const s of series) {
+      const pts = s.pts.map((x) => ({ ...x, X: px(x.timestamp), Y: py(val(s, x.price)) }));
+      if (pts.length >= 2) svg.append(el("polyline", { points: pts.map((x) => `${x.X.toFixed(1)},${x.Y.toFixed(1)}`).join(" "), fill: "none", stroke: s.color, "stroke-width": s.dashed ? 1.6 : 2.2, "stroke-linejoin": "round", ...(s.dashed ? { "stroke-dasharray": "5 3" } : {}) }));
+      const real = pts.filter((x) => !x.synthetic);
+      const step = Math.max(1, Math.ceil(real.length / 150)); // keep the SVG light for long histories
+      real.forEach((x, i) => {
+        if (i % step && i !== real.length - 1) return;
+        const label = `${s.name}${s.dashed ? ` (${t().withoutCard})` : ""} · ${dateShort(x.timestamp)}: ${money(x.price)}${prefs.mode === "pct" ? ` (${pctText((x.price / s.base - 1) * 100)})` : ""}`;
+        if (real.length <= 40 || real.length === 1) svg.append(el("circle", { cx: x.X.toFixed(1), cy: x.Y.toFixed(1), r: 2.6, fill: s.color }));
+        const hit = el("circle", { cx: x.X.toFixed(1), cy: x.Y.toFixed(1), r: 7, fill: "transparent" });
+        hit.append(el("title", {}, label));
+        svg.append(hit);
+      });
+    }
+    svg.append(el("text", { x: L, y: H - 6, "font-size": 9, fill: "#68758a" }, dateShort(minX)));
+    svg.append(el("text", { x: (L + W - R) / 2, y: H - 6, "font-size": 9, fill: "#68758a", "text-anchor": "middle" }, dateShort((minX + maxX) / 2)));
+    svg.append(el("text", { x: W - R, y: H - 6, "font-size": 9, fill: "#68758a", "text-anchor": "end" }, dateShort(maxX)));
+    box.append(svg);
+  }
+
+  // Legend: click a product to hide or show its line(s).
+  const latest = (e) => {
+    const s = groupSeries([e]).find((x) => !x.dashed);
+    const last = s?.pts.at(-1);
+    if (!last) return "";
+    return prefs.mode === "pct" ? pctText((last.price / s.base - 1) * 100) : money(last.price);
+  };
+  box.append(h("div", { class: "legend-head" },
+    h("span", {}, `${t().productsN(entries.length)}${hasCard && state.settings.showRegularPrice ? ` · ${t().dashedNote}` : ""}`),
+    h("span", { class: "legend-actions" },
+      h("button", { class: "linkbtn", type: "button", onclick: () => { prefs.hidden = new Set(); redraw(); } }, t().showAll),
+      h("button", { class: "linkbtn", type: "button", onclick: () => { prefs.hidden = new Set(entries.map((e) => e.p.id)); redraw(); } }, t().hideAll))));
+  box.append(h("div", { class: "legend-list" }, entries.map((e) => {
+    const off = prefs.hidden.has(e.p.id);
+    return h("button", { class: `legend-item${off ? " off" : ""}`, type: "button", title: t().legendTip, "aria-pressed": String(!off),
+      onclick: () => { off ? prefs.hidden.delete(e.p.id) : prefs.hidden.add(e.p.id); redraw(); } },
+      h("i", { style: `background:${e.color}` }), h("span", { class: "name" }, e.p.title), h("span", { class: "val" }, latest(e)));
+  })));
+  if (entries.length === 1) box.append(h("div", { class: "note" }, t().groupSingle));
+}
+
+function groupView() {
+  const folder = state.folders.find((f) => f.id === state.groupFolder);
+  const box = h("div", { class: "group-chart" }, h("div", { class: "note" }, "…"));
+  const wrap = h("div", { class: "group" }, h("h2", { class: "group-title" }, `📁 ${folder?.name ?? ""}`), box);
+  if (!folder) { box.replaceChildren(h("div", { class: "note" }, t().groupEmpty)); return wrap; }
+  if (state.groupData?.folderId === folder.id) drawGroup(box, state.groupData.entries);
+  else loadGroupData(folder.id).then((entries) => { state.groupData = { folderId: folder.id, entries }; if (box.isConnected) drawGroup(box, entries); });
+  return wrap;
+}
+
 /* ---------- shell ---------- */
 function render() {
   const settings = state.view === "settings";
+  const group = state.view === "group";
   const root = document.getElementById("root");
   document.documentElement.lang = state.lang;
   root.replaceChildren(h("main", {},
     h("header", {},
-      h("div", {}, h("h1", {}, "Price Tracker"), h("p", {}, settings ? t().settings : t().subtitle)),
+      h("div", {}, h("h1", {}, "Price Tracker"), h("p", {}, settings ? t().settings : group ? t().groupChart : t().subtitle)),
       h("div", { class: "header-actions" },
-        settings ? h("button", { class: "language", onclick: () => { state.view = "list"; state.msg = null; render(); } }, t().back) : [
+        settings || group ? h("button", { class: "language", onclick: () => { state.view = "list"; state.msg = null; render(); } }, t().back) : [
           h("button", { class: "icon", title: t().refreshAll, "aria-label": t().refreshAll, disabled: state.refreshingAll || !state.products.length, onclick: refreshAll }, state.refreshingAll ? "…" : "⟳"),
           IN_TAB ? null : h("button", { class: "icon", title: t().openTab, "aria-label": t().openTab, onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?tab=1") }) }, "⤢"),
           h("button", { class: "icon", title: t().settings, "aria-label": t().settings, onclick: () => { state.view = "settings"; render(); } }, "⚙"),
         ],
         h("button", { class: "language", onclick: async () => { state.lang = state.lang === "ru" ? "en" : "ru"; await chrome.storage.sync.set({ language: state.lang }); render(); } }, state.lang.toUpperCase()))),
-    settings ? settingsView() : listView()));
+    settings ? settingsView() : group ? groupView() : listView()));
 }
 
 async function refreshAll() {
