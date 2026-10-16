@@ -36,6 +36,8 @@ const STR = {
     alertBelowHighPct: "Уведомлять, если цена ниже максимума за 90 дн. на, % (0 — выкл.)",
     digestMode: "Присылать уведомления одним дайджестом раз в день (9:00)",
     digestHint: "Целевые цены всегда приходят сразу.",
+    showRegular: "Показывать обычную цену",
+    chartsSection: "Графики",
   },
   en: {
     subtitle: "Local price tracking",
@@ -74,10 +76,12 @@ const STR = {
     alertBelowHighPct: "Alert when price is below the 90-day high by, % (0 = off)",
     digestMode: "Send alerts as one daily digest (9:00)",
     digestHint: "Target-price alerts always arrive immediately.",
+    showRegular: "Show regular price",
+    chartsSection: "Charts",
   },
 };
 
-const DEFAULTS = { checkIntervalMinutes: 60, notificationsEnabled: true, dropPercent: 0, notifyLow: true, notifyStock: true, globalPause: false, useFetch: true, alertLowDays: 0, alertBelowHighPct: 0, digestMode: false };
+const DEFAULTS = { checkIntervalMinutes: 60, notificationsEnabled: true, dropPercent: 0, notifyLow: true, notifyStock: true, globalPause: false, useFetch: true, alertLowDays: 0, alertBelowHighPct: 0, digestMode: false, showRegularPrice: true };
 const DAY = 864e5;
 const IN_TAB = new URLSearchParams(location.search).has("tab");
 const SIZE_LIMITS = { minW: 340, maxW: 800, minH: 300, maxH: 600 }; // Chrome caps popups at 800x600
@@ -89,6 +93,14 @@ const state = {
   q: "", sort: "recent", filter: "all", open: new Set(), busy: new Set(), refreshingAll: false, msg: null,
 };
 const chartPrefs = new Map(); // productId -> { range, kind }
+const chartBoxes = new Map(); // chart key -> { box, refresh }; lets a setting change redraw every open chart
+
+function rebuildCharts() {
+  for (const [key, c] of chartBoxes) {
+    if (!c.box.isConnected) chartBoxes.delete(key);
+    else c.refresh();
+  }
+}
 
 const t = () => STR[state.lang];
 const money = (v) => new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 }).format(v);
@@ -164,6 +176,7 @@ async function act(id, fn) {
 async function buildChart(p, box) {
   const pref = chartPrefs.get(p.id) ?? { range: 90 };
   chartPrefs.set(p.id, pref);
+  chartBoxes.set(`p:${p.id}`, { box, refresh: () => buildChart(p, box) });
   let history = [];
   try { history = await send("GET_HISTORY", { productId: p.id, since: pref.range ? Date.now() - pref.range * DAY : 0 }); } catch { /* empty */ }
   const isCard = p.historyPriceKind === "ozon_card";
@@ -178,7 +191,7 @@ async function buildChart(p, box) {
   if (isCard) {
     series.push(mk("ozon_card", "#005bff", t().card, p.currentPrice));
     const reg = mk("unknown", "#f0883e", t().withoutCard, p.regularPrice);
-    if (reg.pts.length) series.push(reg);
+    if (state.settings.showRegularPrice && reg.pts.length) series.push(reg);
   } else {
     series.push(mk("unknown", "#005bff", t().regular, p.currentPrice));
   }
@@ -186,7 +199,10 @@ async function buildChart(p, box) {
   const controls = h("div", { class: "chart-controls" },
     [[30, t().range30], [90, t().range90], [0, t().rangeAll]].map(([r, label]) =>
       h("button", { class: `btn plain${pref.range === r ? " on" : ""}`, onclick: () => { pref.range = r; refreshChart(p, box); } }, label)),
-    series.length > 1 ? series.map((s) => h("span", { class: "legend" }, h("i", { style: `background:${s.color}` }), s.label)) : null);
+    series.length > 1 ? series.map((s) => h("span", { class: "legend" }, h("i", { style: `background:${s.color}` }), s.label)) : null,
+    isCard ? h("label", { class: "toggle" },
+      h("input", { type: "checkbox", checked: state.settings.showRegularPrice, onchange: (e) => { saveSettings({ showRegularPrice: e.target.checked }).then(rebuildCharts); } }),
+      t().showRegular) : null);
 
   box.replaceChildren(controls);
   const startedAt = p.createdAt ?? Math.min(...history.map((x) => x.timestamp), now);
@@ -399,6 +415,9 @@ function settingsView() {
       num("alertBelowHighPct", t().alertBelowHighPct, 0, 0, 95),
       check("digestMode", t().digestMode),
       h("p", { class: "hint" }, t().digestHint)),
+    h("section", { class: "panel" },
+      h("h2", {}, t().chartsSection),
+      check("showRegularPrice", t().showRegular)),
     h("section", { class: "panel" },
       h("h2", {}, t().data),
       h("p", { class: "hint" }, t().exportHint),

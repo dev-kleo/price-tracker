@@ -67,3 +67,4 @@ header p{margin:3px 0 0;color:#68758a;font-size:12px}
 .banner.bad{background:#fff0ed;color:#b53120}
 .summary{background:#e6f8ed;color:#14783a;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;margin-bottom:10px}
 .pill.copy{cursor:pointer}
+.toggle{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#3a465a;margin-left:auto;cursor:pointer}
