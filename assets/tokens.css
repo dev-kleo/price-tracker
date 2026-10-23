@@ -1,0 +1,241 @@
+/* ==========================================================================
+   Design tokens. The ONLY place that holds raw colors, sizes and timings;
+   every other stylesheet and script refers to these custom properties.
+   ========================================================================== */
+
+/* Inter ships inside the extension (MV3: no remote fonts). SF Pro is used when the OS has it. */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("fonts/inter-cyrillic-wght-normal.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("fonts/inter-latin-ext-wght-normal.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("fonts/inter-latin-wght-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- type -------------------------------------------------------------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --fs-hero: 3.25rem;       /* 52px */
+  --fs-title: 2.125rem;     /* 34px */
+  --fs-title2: 1.625rem;    /* 26px */
+  --fs-headline: 1.0625rem; /* 17px */
+  --fs-body: 0.9375rem;     /* 15px */
+  --fs-price: 1rem;         /* 16px */
+  --fs-caption: 0.8125rem;  /* 13px */
+  --fs-seg: 0.75rem;        /* 12px: segmented labels */
+  --fs-micro: 0.6875rem;    /* 11px */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --ls-hero: -0.04em;
+  --ls-title: -0.03em;
+  --ls-title2: -0.02em;
+  --ls-headline: -0.014em;
+  --ls-body: -0.008em;
+  --ls-caption: 0;
+  --lh-hero: 1;
+  --lh-title: 1.1;
+  --lh-title2: 1.15;
+  --lh-body: 1.4;
+  --lh-caption: 1.35;
+
+  /* ---- space, shape, size ------------------------------------------------ */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --r-card: 1.5rem;         /* 24px: cards and panels (22-26) */
+  --r-sheet: 1.625rem;      /* 26px */
+  --r-row: 0.75rem;         /* 12px: rows, inputs, images */
+  --r-pill: 999px;
+  --hit: 2.5rem;            /* minimum touch/click target, 40px */
+  --size-img: 3rem;         /* 48px product image */
+  --size-key: 0.75rem;      /* chart color key */
+  --tabbar-h: 3.5rem;
+  --navbar-h: 3rem;
+  --seg-h: 2.5rem;
+  --chart-h: 12rem;
+  --content-max: 46rem;     /* readable width in a full tab */
+  --sheet-max-h: 85%;
+  --focus-ring: 0.1875rem;
+  --stroke-line: 2.8px;
+  --stroke-grid: 1px;
+  --hairline-w: 1px;
+  --chart-gutter: 52px;
+  --chart-pad-top: 12px;
+  --chart-pad-bottom: 24px;
+  --chart-pad-left: 8px;
+  --dash: 6 5;
+  --dash-ref: 3 4;
+  --fade-h: 3.5rem;
+  --popup-w: 420px;
+  --popup-h: 600px;
+
+  /* ---- motion ------------------------------------------------------------ */
+  --spring-response: 0.35;  /* seconds */
+  --spring-damping: 1;      /* 1 = critically damped (no bounce) */
+  --spring-flick-damping: 0.78; /* a touch of bounce after a throw */
+  --t-press: 100ms;
+  --t-fast: 150ms;
+  --t-draw: 700ms;
+  --t-count: 700ms;
+  --t-shimmer: 1400ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --press-scale: 0.97;
+  --drag-hysteresis: 10;    /* px before a drag commits to a direction */
+  --toast-ms: 6000;
+
+  /* ---- color: light ------------------------------------------------------ */
+  --ground: #F2F2F7;
+  --card: #FFFFFF;
+  --ink: #1D1D1F;
+  --muted: #6E6E73;
+  --hairline: #E5E5EA;
+  --accent: #0066CC;
+  --accent-tint: #E3EEF9;
+  --on-accent: #FFFFFF;
+  --drop-ink: #1E6B35;
+  --drop-bg: #E4F4E8;
+  --rise-ink: #A04100;
+  --rise-bg: #FFF0E0;
+  --gone-ink: #515154;
+  --gone-bg: #ECECF0;
+  --warn-ink: var(--rise-ink);   /* errors use the amber pair */
+  --warn-bg: var(--rise-bg);
+  --danger-ink: #B3261E;
+  --field-bg: #E8E8ED;
+  --seg-bg: #E8E8ED;
+  --seg-thumb: #FFFFFF;
+  --press-bg: #EDEDF2;
+  --scrim: rgba(0, 0, 0, 0.32);
+
+  --chart-1: #1C3FAA;
+  --chart-2: #D9480F;
+  --chart-3: #087F5B;
+  --chart-4: #A61E4D;
+  --chart-5: #5F3DC4;
+  --chart-6: #0B7285;
+  --chart-7: #B07A00;
+  --chart-8: #364FC7;
+  --chart-9: #8A3FB3;
+  --chart-10: #4A4A4F;
+  --chart-gone: #8E8E93;
+  --chart-grid: var(--hairline);
+  --chart-ink: var(--muted);
+
+  /* ---- materials --------------------------------------------------------- */
+  --material: rgba(255, 255, 255, 0.72);
+  --material-edge: rgba(255, 255, 255, 0.9);
+  --material-border: transparent;
+  --blur: blur(24px) saturate(180%);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 1px rgba(0, 0, 0, 0.06);
+  --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ---- color: dark (manual) --------------------------------------------------- */
+:root[data-theme="dark"] {
+  --ground: #000000;
+  --card: #1C1C1E;
+  --ink: #F5F5F7;
+  --muted: #A1A1A6;
+  --hairline: #38383A;
+  --accent: #2997FF;
+  --accent-tint: #14283D;
+  --on-accent: #001A33;
+  --drop-ink: #6FD58A;
+  --drop-bg: #12301D;
+  --rise-ink: #FFB066;
+  --rise-bg: #3A2210;
+  --gone-ink: #AEAEB2;
+  --gone-bg: #2C2C2E;
+  --danger-ink: #FF8A80;
+  --field-bg: #2C2C2E;
+  --seg-bg: #2C2C2E;
+  --seg-thumb: #636366;
+  --press-bg: #2C2C2E;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --chart-1: #7B9CFF;
+  --chart-2: #FF8A5C;
+  --chart-3: #3DD6A2;
+  --chart-4: #FF7AA8;
+  --chart-5: #B197FC;
+  --chart-6: #4DD0E1;
+  --chart-7: #FFC24D;
+  --chart-8: #91A7FF;
+  --chart-9: #E599F7;
+  --chart-10: #CED4DA;
+  --chart-gone: #8E8E93;
+  --material: rgba(28, 28, 30, 0.72);
+  --material-edge: rgba(255, 255, 255, 0.16);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 0 0 transparent;
+  --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* ---- color: dark (follows the system unless the user picked a theme) -------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --ground: #000000;
+    --card: #1C1C1E;
+    --ink: #F5F5F7;
+    --muted: #A1A1A6;
+    --hairline: #38383A;
+    --accent: #2997FF;
+    --accent-tint: #14283D;
+    --on-accent: #001A33;
+    --drop-ink: #6FD58A;
+    --drop-bg: #12301D;
+    --rise-ink: #FFB066;
+    --rise-bg: #3A2210;
+    --gone-ink: #AEAEB2;
+    --gone-bg: #2C2C2E;
+    --danger-ink: #FF8A80;
+    --field-bg: #2C2C2E;
+    --seg-bg: #2C2C2E;
+    --seg-thumb: #636366;
+    --press-bg: #2C2C2E;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --chart-1: #7B9CFF;
+    --chart-2: #FF8A5C;
+    --chart-3: #3DD6A2;
+    --chart-4: #FF7AA8;
+    --chart-5: #B197FC;
+    --chart-6: #4DD0E1;
+    --chart-7: #FFC24D;
+    --chart-8: #91A7FF;
+    --chart-9: #E599F7;
+    --chart-10: #CED4DA;
+    --chart-gone: #8E8E93;
+    --material: rgba(28, 28, 30, 0.72);
+    --material-edge: rgba(255, 255, 255, 0.16);
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 0 0 transparent;
+    --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.6);
+    --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.6);
+    --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ---- accessibility modes ---------------------------------------------------- */
+/* No see-through surfaces when the user asked for less transparency. */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--card); --blur: none; --material-edge: transparent; }
+}
+/* Higher contrast: solid surfaces with a visible edge, stronger text and lines. */
+@media (prefers-contrast: more) {
+  :root {
+    --material: var(--card);
+    --blur: none;
+    --material-edge: transparent;
+    --material-border: var(--ink);
+    --muted: var(--ink);
+    --hairline: var(--muted);
+  }
+}
