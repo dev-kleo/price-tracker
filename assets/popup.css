@@ -99,3 +99,8 @@ header p{margin:3px 0 0;color:#68758a;font-size:12px}
 .legend-item.off{opacity:.45}
 .legend-item.off .name{text-decoration:line-through}
 .legend-head{flex-wrap:wrap}
+.share-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:14px;padding:7px 10px;border-radius:10px;background:#eef1f7;font-size:11.5px;color:#68758a}
+.share-link{border:0;background:none;padding:0;color:#005bff;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:none}
+.share-link:hover{text-decoration:underline}
+.share-x{margin-left:auto;border:0;background:none;color:#8a96ab;font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
+.share-x:hover{color:#3a465a}

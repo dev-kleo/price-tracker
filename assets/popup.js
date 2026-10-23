@@ -52,6 +52,8 @@ const STR = {
     groupAllHidden: "Все линии скрыты. Нажмите на товар в списке ниже, чтобы показать его.",
     showAll: "Показать все", hideAll: "Скрыть все", legendTip: "Нажмите, чтобы скрыть или показать линию",
     productsN: (n) => `Товаров: ${n}`, dashedNote: "пунктир — цена без карты",
+    shareMsg: "Нравится? Расскажите друзьям", shareCopy: "Копировать ссылку", shareReview: "Оставить отзыв",
+    shareDismiss: "Скрыть", copyFail: "Не удалось скопировать", shareText: "История цен на Ozon, Wildberries и Яндекс Маркет",
   },
   en: {
     subtitle: "Local price tracking",
@@ -106,6 +108,8 @@ const STR = {
     groupAllHidden: "All lines are hidden. Click a product in the list below to show it.",
     showAll: "Show all", hideAll: "Hide all", legendTip: "Click to hide or show this line",
     productsN: (n) => `Products: ${n}`, dashedNote: "dashed line: price without card",
+    shareMsg: "Enjoying it? Tell your friends", shareCopy: "Copy link", shareReview: "Leave a review",
+    shareDismiss: "Hide", copyFail: "Couldn't copy", shareText: "Price history for Ozon, Wildberries and Yandex Market",
   },
 };
 
@@ -118,6 +122,7 @@ const DEFAULT_SIZE = { w: 440, h: 320 };
 const state = {
   lang: "ru", view: "list", products: [], settings: { ...DEFAULTS },
   insights: null, health: {}, folders: [], folder: "all", folderEdit: null, folderMsg: null, groupFolder: null, groupData: null,
+  share: { firstRunAt: 0, dismissed: false, hiddenUntil: 0 },
   q: "", sort: "recent", filter: "all", open: new Set(), busy: new Set(), refreshingAll: false, msg: null,
 };
 const chartPrefs = new Map(); // productId -> { range, kind }
@@ -457,6 +462,61 @@ function card(p) {
   return el;
 }
 
+/* ---------- share / review line (quiet, dismissible, local state only) ---------- */
+const STORE_URL = "https://chromewebstore.google.com/detail/dodppojnnlcmbjeenenmpalmiikkmfkh";
+const SHARE_MIN_PRODUCTS = 2, SHARE_MIN_DAYS = 3, SHARE_SNOOZE_DAYS = 60;
+
+async function loadShareState() {
+  try {
+    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil"]);
+    let first = Number(s.firstRunAt);
+    if (!Number.isFinite(first) || first <= 0) { first = Date.now(); await chrome.storage.local.set({ firstRunAt: first }); }
+    state.share = { firstRunAt: first, dismissed: s.shareDismissed === true, hiddenUntil: Number(s.shareHiddenUntil) || 0 };
+  } catch { /* storage unavailable: the line simply stays hidden */ }
+}
+
+function shareVisible() {
+  const s = state.share, now = Date.now();
+  return !s.dismissed && s.firstRunAt > 0 && now - s.firstRunAt >= SHARE_MIN_DAYS * DAY && now >= s.hiddenUntil && state.products.length >= SHARE_MIN_PRODUCTS;
+}
+
+async function snoozeShare() {
+  state.share.hiddenUntil = Date.now() + SHARE_SNOOZE_DAYS * DAY;
+  try { await chrome.storage.local.set({ shareHiddenUntil: state.share.hiddenUntil }); } catch { /* ignore */ }
+}
+
+async function dismissShare() {
+  state.share.dismissed = true;
+  try { await chrome.storage.local.set({ shareDismissed: true }); } catch { /* ignore */ }
+  render();
+}
+
+function shareLine() {
+  if (!shareVisible()) return null;
+  const enc = encodeURIComponent;
+  const tg = `https://t.me/share/url?url=${enc(STORE_URL)}&text=${enc(t().shareText)}`;
+  const vk = `https://vk.com/share.php?url=${enc(STORE_URL)}`;
+  const review = `${STORE_URL}/reviews`;
+  // Save the 60-day snooze first, then open the page in a new tab.
+  const link = (label, url) => h("a", { class: "share-link", href: url, target: "_blank", rel: "noopener noreferrer",
+    onclick: async (e) => { e.preventDefault(); await snoozeShare(); chrome.tabs.create({ url }); render(); } }, label);
+  const copyBtn = h("button", { class: "share-link", type: "button" }, t().shareCopy);
+  copyBtn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(STORE_URL); } catch {
+      copyBtn.textContent = t().copyFail;
+      setTimeout(() => { if (copyBtn.isConnected) copyBtn.textContent = t().shareCopy; }, 1800);
+      return;
+    }
+    await snoozeShare();
+    copyBtn.textContent = t().copied;
+    setTimeout(() => { if (copyBtn.isConnected) render(); }, 1300);
+  });
+  return h("div", { class: "share-line" },
+    h("span", { class: "share-msg" }, t().shareMsg),
+    link("Telegram", tg), link("VK", vk), copyBtn, link(t().shareReview, review),
+    h("button", { class: "share-x", type: "button", title: t().shareDismiss, "aria-label": t().shareDismiss, onclick: dismissShare }, "×"));
+}
+
 function listView() {
   const searchInput = h("input", { type: "search", placeholder: t().search, value: state.q, "aria-label": t().search });
   searchInput.addEventListener("input", () => { state.q = searchInput.value; renderList(); });
@@ -474,7 +534,8 @@ function listView() {
     h("div", { class: "toolbar" }, searchInput,
       mkSelect(t().filter, state.filter, (v) => { state.filter = v; renderList(); }),
       mkSelect(t().sort, state.sort, (v) => { state.sort = v; renderList(); })),
-    listBox);
+    listBox,
+    shareLine());
   wrap._fill = () => {
     const items = visibleProducts();
     listBox.replaceChildren(...(items.length ? items.map(card) : [h("div", { class: "empty" }, emptyText())]));
@@ -783,6 +844,7 @@ function setupResize() {
   const stored = await chrome.storage.sync.get({ ...DEFAULTS, language: "ru" });
   state.lang = stored.language === "en" ? "en" : "ru";
   for (const k of Object.keys(DEFAULTS)) state.settings[k] = stored[k];
+  await loadShareState();
   await loadProducts();
   render();
 })();
