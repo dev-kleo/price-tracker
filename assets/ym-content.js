@@ -109,6 +109,36 @@ function parsePriceBlock(text) {
     return !!parseLocation() && !document.querySelector("h1") && BLOCK_RE.test(`${document.title} ${(document.body?.innerText ?? "").slice(0, 600)}`);
   }
 
+  const SOLD_RE = /^(?:нет\s+в\s+продаже|нет\s+в\s+наличии|товар\s+закончился|товара\s+нет\s+в\s+наличии|товар\s+недоступен)\.?$/i;
+  const REMOVED_RE = /продавец\s+удалил\s+этот\s+товар|товар\s+не\s+найден|страница\s+не\s+найдена/i;
+  const OOS_RE = /OutOfStock|SoldOut|Discontinued/i;
+
+  function leafMatch(root, re) {
+    if (!root) return null;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+      const t = n.nodeValue.replace(/\s+/g, " ").trim();
+      if (t.length > 0 && t.length <= 60 && re.test(t) && !n.parentElement?.closest("a, script, style")) return n.parentElement;
+    }
+    return null;
+  }
+
+  // Positive "not available" signal, or null. Structured data (schema.org OutOfStock) is explicit; text is only trusted when
+  // no price is shown, outside links. A removed product has the "Нет такой страницы" title / "Продавец удалил этот товар".
+  function unavailableSignal() {
+    const loc = parseLocation();
+    if (!loc) return null;
+    const ozonProductId = `ym:${loc.id}`;
+    const ld = productLd();
+    const offer = Array.isArray(ld?.offers) ? ld.offers[0] : ld?.offers;
+    if (offer && String(offer.url ?? "").includes(`/${loc.id}`) && OOS_RE.test(String(offer.availability ?? ""))) return { unavailable: true, reason: "out_of_stock", ozonProductId };
+    const main = document.querySelector("main") ?? document.body;
+    if (/нет такой страницы/i.test(document.title) || (!document.querySelector("h1") && leafMatch(document.body, REMOVED_RE))) return { unavailable: true, reason: "removed", ozonProductId };
+    if (snapshot() === null && leafMatch(main, SOLD_RE)) return { unavailable: true, reason: "out_of_stock", ozonProductId };
+    return null;
+  }
+
   const send = (msg) =>
     chrome.runtime.sendMessage(msg).then((res) => {
       if (res && typeof res === "object" && typeof res.error === "string") throw new Error(res.error);
@@ -126,6 +156,15 @@ function parsePriceBlock(text) {
     if (!snap) {
       renderedKey = "";
       document.getElementById(ROOT_ID)?.remove();
+      const ua = unavailableSignal();
+      if (ua) {
+        const gone = `${ua.ozonProductId}:gone`;
+        if (gone !== lastSentKey || Date.now() - lastSentAt > 3e5) {
+          lastSentKey = gone;
+          lastSentAt = Date.now();
+          send({ type: "PAGE_UNAVAILABLE", ozonProductId: ua.ozonProductId, reason: ua.reason }).catch(() => {});
+        }
+      }
       return;
     }
     const key0 = `${snap.ozonProductId}:${snap.price.value}`;
@@ -191,6 +230,6 @@ function parsePriceBlock(text) {
 
   chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     if (!msg || typeof msg !== "object" || msg.type !== "GET_YM_SNAPSHOT") return;
-    respond(snapshot() ?? (blocked() ? { blocked: true } : null));
+    respond(snapshot() ?? unavailableSignal() ?? (blocked() ? { blocked: true } : null));
   });
 })();

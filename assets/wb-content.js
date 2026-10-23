@@ -5,8 +5,6 @@
 
   const ROOT_ID = "wb-price-tracker-root";
   const ID_RE = /\/catalog\/(\d{5,15})\/detail\.aspx/i;
-  const CART_RE = /(в корзину|купить сейчас|добавить в корзину)/i;
-  const GONE_RE = /(нет в наличии|распродан|товар закончился)/i;
   const BLOCK_RE = /(captcha|капча|вы не робот|подозрительн)/i;
 
   const parseRub = (text) => {
@@ -59,9 +57,6 @@
     const title = readTitle(nm);
     const { price, wallet } = readPrices();
     if (!title || price === null) return null;
-    const scope = document.querySelector("main") ?? document.body;
-    const text = scope.innerText ?? "";
-    const hasCart = Array.from(scope.querySelectorAll("button")).some((b) => CART_RE.test(b.textContent ?? ""));
     return {
       ozonProductId: `wb:${nm}`,
       title,
@@ -70,12 +65,42 @@
       imageUrl: readImage(),
       price: { value: price, source: "wb-dom", confidence: 0.9 },
       walletPrice: wallet,
-      availability: !hasCart && GONE_RE.test(text) ? "unavailable" : "available",
+      availability: document.querySelector('[class*="soldOutProduct"]') ? "unavailable" : "available",
     };
   }
 
   function blocked() {
     return !productId() ? false : !textOf('[class*="productHeader"]') && BLOCK_RE.test(`${document.title} ${(document.body?.innerText ?? "").slice(0, 600)}`);
+  }
+
+  const SOLD_RE = /^(?:нет\s+в\s+наличии|товар\s+закончился|распродан|нет\s+в\s+продаже)\.?$/i;
+  const REMOVED_RE = /ничего\s+не\s+найдено|товар\s+не\s+найден|страница\s+не\s+найдена|такой\s+страницы\s+нет/i;
+
+  // A short text line matching `re` inside `root`, ignoring links (other products' tiles carry their own badges).
+  function leafMatch(root, re) {
+    if (!root) return null;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+      const t = n.nodeValue.replace(/\s+/g, " ").trim();
+      if (t.length > 0 && t.length <= 60 && re.test(t) && !n.parentElement?.closest("a, script, style")) return n.parentElement;
+    }
+    return null;
+  }
+
+  // Positive "not available" signal, or null. Real pages: sold out = a "soldOutProduct" heading in the product header and no price
+  // block; removed = a "nothing found" h1 and no product header.
+  function unavailableSignal() {
+    const nm = productId();
+    if (!nm) return null;
+    const ozonProductId = `wb:${nm}`;
+    const header = document.querySelector('[class*="productHeader"], .j-product-header');
+    if (readPrices().price === null && (document.querySelector('[class*="soldOutProduct"]') || leafMatch(header, SOLD_RE))) {
+      return { unavailable: true, reason: "out_of_stock", ozonProductId };
+    }
+    const h1 = Array.from(document.querySelectorAll("h1")).map((x) => x.textContent ?? "").join(" ");
+    if (!header && REMOVED_RE.test(h1)) return { unavailable: true, reason: "removed", ozonProductId };
+    return null;
   }
 
   const send = (msg) =>
@@ -95,6 +120,15 @@
     if (!snap) {
       renderedKey = "";
       document.getElementById(ROOT_ID)?.remove();
+      const ua = unavailableSignal();
+      if (ua) {
+        const gone = `${ua.ozonProductId}:gone`;
+        if (gone !== lastSentKey || Date.now() - lastSentAt > 3e5) {
+          lastSentKey = gone;
+          lastSentAt = Date.now();
+          send({ type: "PAGE_UNAVAILABLE", ozonProductId: ua.ozonProductId, reason: ua.reason }).catch(() => {});
+        }
+      }
       return;
     }
     const key0 = `${snap.ozonProductId}:${snap.price.value}`;
@@ -164,6 +198,6 @@
 
   chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     if (!msg || typeof msg !== "object" || msg.type !== "GET_WB_SNAPSHOT") return;
-    respond(snapshot() ?? (blocked() ? { blocked: true } : null));
+    respond(snapshot() ?? unavailableSignal() ?? (blocked() ? { blocked: true } : null));
   });
 })();

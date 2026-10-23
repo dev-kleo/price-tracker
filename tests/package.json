@@ -1,0 +1,7 @@
+{
+  "name": "price-tracker-tests",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only tests (not part of the extension package)",
+  "devDependencies": { "playwright-core": "^1.50.0" }
+}
