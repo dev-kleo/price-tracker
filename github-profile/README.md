@@ -1,6 +1,6 @@
 # Cleo
 
-**MSc Economics and International Business.** I build software tools that people can run and check: retrieval-based assistants, browser extensions and web apps.
+**MSc student in Economics and International Business at South Ural State University.** I build software tools that people can run and check: retrieval-based assistants, browser extensions and web apps.
 
 ## Background and interests
 - Economics and international business, with a focus on how information and prices reach decision makers.
