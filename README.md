@@ -38,4 +38,4 @@ Ozon serves an anti-bot challenge to automated clients, so its fixtures are synt
 `chrome://extensions` → Developer mode → Load unpacked → select this folder.
 
 ## License
-Add a LICENSE file before publishing (MIT is a common choice).
+MIT. See [LICENSE](LICENSE). The bundled Inter font is under the SIL Open Font License (`assets/fonts/Inter-OFL.txt`).
