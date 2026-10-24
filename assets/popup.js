@@ -21,6 +21,7 @@ const state = {
   products: [], insights: null, folders: [], health: {}, settings: { ...DEFAULTS },
   q: "", seg: "all", sort: "recent", store: "all", status: "any", refreshingAll: false,
   share: { firstRunAt: 0, dismissed: false, hiddenUntil: 0 },
+  rate: { done: false, hiddenUntil: 0, step: "ask" },
 };
 const t = () => STR[state.lang];
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload }).then((res) => {
@@ -227,9 +228,9 @@ function productsTab() {
   const nodes = [
     h("div", { class: "topbar" }, h("span", { class: "status-line", role: "status" }, status), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget))),
     h("h1", { class: "title" }, t().appTitle),
-    ...banners(), savingsCard(),
+    ...banners(), savingsCard(), rateCard(),
     h("div", { class: "searchrow" }, h("label", { class: "field" }, icon("search", "icon field-icon"), search, clear), roundButton("filter", t().filtersBtn, openFilterSheet)),
-    seg.el, listHost, shareLine(),
+    seg.el, listHost, rateVisible() ? null : shareLine(),
   ];
   renderList();
   return nodes;
@@ -773,7 +774,8 @@ async function refreshAll() {
 const SHARE_MIN_PRODUCTS = 2, SHARE_MIN_DAYS = 3, SHARE_SNOOZE_DAYS = 60;
 async function loadShareState() {
   try {
-    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil"]);
+    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil", "rateDone", "rateHiddenUntil"]);
+    state.rate.done = s.rateDone === true; state.rate.hiddenUntil = Number(s.rateHiddenUntil) || 0;
     let first = Number(s.firstRunAt);
     if (!Number.isFinite(first) || first <= 0) { first = Date.now(); await chrome.storage.local.set({ firstRunAt: first }); }
     state.share = { firstRunAt: first, dismissed: s.shareDismissed === true, hiddenUntil: Number(s.shareHiddenUntil) || 0 };
@@ -785,6 +787,31 @@ function shareVisible() {
 }
 async function snoozeShare() { state.share.hiddenUntil = Date.now() + SHARE_SNOOZE_DAYS * DAY; try { await chrome.storage.local.set({ shareHiddenUntil: state.share.hiddenUntil }); } catch { /* ignore */ } }
 async function dismissShare() { state.share.dismissed = true; try { await chrome.storage.local.set({ shareDismissed: true }); } catch { /* ignore */ } renderRoot(); }
+/* Review prompt: only after a week of use, with 3+ products and real savings; one tap away, never repeated once answered. */
+const RATE_MIN_DAYS = 7, RATE_MIN_PRODUCTS = 3, RATE_SNOOZE_DAYS = 30;
+function rateVisible() {
+  const r = state.rate, now = Date.now(), first = state.share.firstRunAt;
+  return !r.done && first > 0 && now - first >= RATE_MIN_DAYS * DAY && now >= r.hiddenUntil && state.products.length >= RATE_MIN_PRODUCTS && (state.insights?.summary?.drop30Total ?? 0) > 0;
+}
+async function saveRate(patch) { Object.assign(state.rate, patch); try { await chrome.storage.local.set({ rateDone: state.rate.done, rateHiddenUntil: state.rate.hiddenUntil }); } catch { /* ignore */ } }
+function rateCard() {
+  if (!rateVisible()) return null;
+  const r = state.rate, close = async (patch) => { await saveRate(patch); renderRoot(); };
+  const later = h("button", { class: "pill tint small", type: "button", onclick: () => close({ hiddenUntil: Date.now() + RATE_SNOOZE_DAYS * DAY }) }, t().rateLater);
+  if (r.step === "thanks") return h("section", { class: "card rate", role: "status" }, h("div", { class: "rate-title" }, t().rateThanks));
+  if (r.step === "yes") {
+    return h("section", { class: "card rate" }, h("div", { class: "rate-title" }, t().rateYesTitle), h("p", { class: "caption" }, t().rateAsk),
+      h("div", { class: "pills-row" },
+        h("a", { class: "pill primary", href: `${STORE_URL}/reviews`, target: "_blank", rel: "noopener noreferrer", onclick: async (e) => { e.preventDefault(); chrome.tabs.create({ url: `${STORE_URL}/reviews` }); r.step = "thanks"; await saveRate({ done: true }); renderRoot(); } }, t().rateGo),
+        later));
+  }
+  return h("section", { class: "card rate" }, h("div", { class: "rate-title" }, t().rateTitle),
+    h("div", { class: "pills-row" },
+      h("button", { class: "pill primary", type: "button", onclick: () => { r.step = "yes"; renderRoot(); } }, t().rateYes),
+      h("button", { class: "pill tint", type: "button", onclick: async () => { r.step = "thanks"; await saveRate({ done: true }); renderRoot(); } }, t().rateNo),
+      later));
+}
+
 function shareLine() {
   if (!shareVisible()) return null;
   const enc = encodeURIComponent;

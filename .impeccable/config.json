@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-23T18:34:49.619Z",
+        "reason": "user confirmed: redesign spec requires Inter bundled locally as the fallback after SF/-apple-system"
+      }
+    ]
+  }
+}

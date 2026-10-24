@@ -170,6 +170,7 @@ const NEW = {
     ariaBack: "Назад", ariaClose: "Закрыть", ariaMore: "Ещё", openedInTab: "Открыть во вкладке",
     groupCaption: (n, s) => `${n} ${plural(n, "товар", "товара", "товаров")} · выбрано ${s}`,
     found: (k, n) => `Найдено ${k} из ${n}`, onlyMatchingBtn: "Только найденные", onlySelectedBtn: "Только выбранные", filterGroupPh: "Название или ID",
+    rateTitle: "Нравится расширение?", rateYes: "Да", rateNo: "Не очень", rateLater: "Позже", rateYesTitle: "Рады, что помогает", rateAsk: "Отзыв в Chrome Web Store помогает другим найти расширение.", rateGo: "Оставить отзыв ★★★★★", rateThanks: "Спасибо за ответ!",
     checking: "Проверяем…", checkingAll: "Проверяем цены…", exitFs: "Свернуть",
   },
   en: {
@@ -204,6 +205,7 @@ const NEW = {
     ariaBack: "Back", ariaClose: "Close", ariaMore: "More", openedInTab: "Open in a tab",
     groupCaption: (n, s) => `${n} ${n === 1 ? "product" : "products"} · ${s} selected`,
     found: (k, n) => `Found ${k} of ${n}`, onlyMatchingBtn: "Only matching", onlySelectedBtn: "Only selected", filterGroupPh: "Name or ID",
+    rateTitle: "Enjoying the extension?", rateYes: "Yes", rateNo: "Not really", rateLater: "Later", rateYesTitle: "Glad it helps", rateAsk: "A review in the Chrome Web Store helps others find it.", rateGo: "Leave a review ★★★★★", rateThanks: "Thanks for your answer!",
     checking: "Checking…", checkingAll: "Checking prices…", exitFs: "Exit",
   },
 };
