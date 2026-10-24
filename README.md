@@ -2,6 +2,8 @@
 
 Chrome extension (Manifest V3) that tracks prices on Ozon, Wildberries and Yandex Market. All data stays in the browser: no server, no account.
 
+<p align="center"><img src="docs/demo.gif" alt="Demo: list, product chart with scrubbing, folders and group chart" width="360"></p>
+
 | List | Product | Group chart |
 |---|---|---|
 | ![List](docs/screens/list.png) | ![Product](docs/screens/detail.png) | ![Group chart](docs/screens/group-chart.png) |
@@ -30,6 +32,7 @@ cd tests && npm install
 node parsers.mjs
 node availability-flow.mjs
 node ui.mjs
+node demo-gif.mjs   # re-records docs/demo.gif with seeded demo data (needs ffmpeg)
 ```
 
 Ozon serves an anti-bot challenge to automated clients, so its fixtures are synthetic; Wildberries and Yandex Market fixtures are saved real pages.
