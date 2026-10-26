@@ -1,8 +1,8 @@
 {
   "extName": {
-    "message": "Трекер цен: Ozon, Wildberries, Яндекс Маркет"
+    "message": "Трекер цен: Ozon, Wildberries, Яндекс Маркет, AliExpress"
   },
   "extDescription": {
-    "message": "Отслеживайте цены на Ozon, Wildberries и Яндекс Маркете: график, история цен, уведомления о скидках. Всё хранится локально."
+    "message": "Отслеживание цен на Ozon, Wildberries, Яндекс Маркете и AliExpress: история цен, графики, уведомления. Данные только в браузере."
   }
 }
