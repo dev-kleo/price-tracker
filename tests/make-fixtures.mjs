@@ -16,6 +16,8 @@ Minimal saved pages for the availability tests. Playwright serves them at the re
           The sold-out pages are SYNTHETIC (schema.org OutOfStock, a "Нет в продаже" line): no live sold-out page was available.
 - ozon/*  SYNTHETIC. Ozon served an anti-bot challenge, so no live page could be inspected. Built from the extension's parsing rules and
           Ozon's known webOutOfStock widget / schema.org markup.
+- ae/*    markup and class names copied from LIVE aliexpress.ru (2026-10-26); variant.html reproduces the live SPA behaviour (sku_id in the URL, price attribute).
+          soldout.html is SYNTHETIC (site's own i18n texts); blocked.html is the live bot-check title.
 - *failed* empty or skeleton DOM: must become an ERROR, never "unavailable".
 - Every available/sold-out page also carries recommendation tiles that show OTHER products' prices and "Нет в наличии" inside links (the false-positive trap).
 `);
@@ -59,4 +61,40 @@ write("ozon/soldout-widget.html", page(ozT, ozHead, `<main>${ozH1}<div data-widg
 write("ozon/soldout-text.html", page(ozT, ozHead, `<main>${ozH1}<div><span>Товар закончился</span></div>${ozTiles}</main>`));
 write("ozon/removed.html", page("OZON — страница не найдена", "", `<main><div><h2>Такой страницы не существует</h2><a href="/">На главную</a></div>${ozTiles}</main>`));
 write("ozon/failed.html", page("OZON", "", `<div id="__ozon"></div>`));
+
+// ------------------------------------------------------------------ AliExpress (markup copied from LIVE aliexpress.ru, 2026-10-26)
+// The live page is a single-page app: price in [data-unformatted-price], the selected variant as sku_id in the address bar
+// (written by the page itself a moment after load and rewritten on every variant click). The inline script below reproduces
+// exactly that behaviour for the variant page; the markup and class names are copied from the live DOM.
+const aeTiles = `<section><h2>Рекомендуем вам</h2><a href="/item/1005000000000002.html"><div>Нет в продаже</div><span>999 ₽</span></a><a href="/item/1005000000000003.html"><span>1 250 ₽</span></a></section>`;
+const aeH1 = (t) => `<h1 class="snow-ali-kit_Typography__base__1shggo HazeProductDescription_HazeProductDescription__name__l53nk">${t}</h1>`;
+const aeHead = `<meta property="og:image" content="https://ae-pic-a1.aliexpress-media.com/kf/S41204e5ba61c4219ab122cf4b8d405f0F.jpg"><meta property="og:url" content="https://aliexpress.ru/item/1005003040504687.html">`;
+const aePrice = (n, extra = "") => `<div class="HazeProductPrice_HazeProductPrice__wrap__1h8vf" data-unformatted-price="${n}" data-testid="HazeProductPrice"><div class="HazeProductPrice_SnowPrice__container__1c02e"><div class="HazeProductPrice_SnowPrice__blockMain__1c02e"><div class="HazeProductPrice_SnowPrice__mainM__1c02e" id="ae-main">${String(n).replace(/\B(?=(\d{3})+$)/g, "&nbsp;")}&nbsp;₽</div></div>${extra}</div></div>`;
+const aeOpt = (txt, active, id) => `<li class="SnowSku_SkuPropertyItem__optionWrap__xmad5"><button class="SnowSku_SkuPropertyItem__option__xmad5 SnowSku_SkuPropertyItem__optionBtn__xmad5${active ? " SnowSku_SkuPropertyItem__optionActive__xmad5" : ""} SnowSku_SkuPropertyItem__optionWithoutImage__xmad5" id="${id}" type="button" data-testid="skuProp"><span class="SnowSku_SkuPropertyItem__optionText__xmad5">${txt}</span></button></li>`;
+const aeProp = (name, value, opts) => `<div class="SnowSku_SkuPropertyItem__skuProp__xmad5"><div class="SnowSku_SkuPropertyItem__propNameWrap__xmad5"><span>${name}:</span><span>${value}</span></div><ul class="SnowSku_SkuPropertyItem__optionList__xmad5">${opts}</ul></div>`;
+const aeVariants = [["1M", "12000027596743248", 182], ["2M", "12000027596743249", 231], ["3M", "12000027596743250", 359]];
+const aeScript = `<script>
+const V=${JSON.stringify(aeVariants)};
+const cur=new URLSearchParams(location.search).get("sku_id");
+function pick(sku,push){const v=V.find(x=>x[1]===sku)||V[0];
+  document.querySelector("[data-unformatted-price]").setAttribute("data-unformatted-price",v[2]);
+  document.getElementById("ae-main").textContent=String(v[2]).replace(/\B(?=(\d{3})+$)/g," ")+" ₽";
+  document.querySelectorAll("#len button").forEach(b=>b.classList.toggle("SnowSku_SkuPropertyItem__optionActive__xmad5",b.dataset.sku===v[1]));
+  document.getElementById("lenval").textContent=v[0];
+  const u=new URL(location.href);u.searchParams.set("sku_id",v[1]);history.replaceState(null,"",u);}
+document.querySelectorAll("#len button").forEach(b=>b.addEventListener("click",()=>pick(b.dataset.sku)));
+if(cur)pick(cur);else setTimeout(()=>pick(V[0][1]),1500); // the page writes the default variant into the URL after load
+</script>`;
+write("ae/variant.html", page("Кабель USB Type-C 3A для Samsung S10 S20 Xiaomi mi 11 | AliExpress", aeHead,
+  `<main>${aeH1("Кабель USB Type-C 3A для Samsung S10 S20 Xiaomi mi 11")}${aePrice(182, `<div class="HazeProductPrice_PromoTag__tag__66dmj">Осталось 36 шт.</div>`)}<div class="SnowSku_SnowSku__propertyListContainer__34imu">${aeProp("Цвет", "Black For Type C", aeOpt("", true, "c0"))}<div class="SnowSku_SkuPropertyItem__skuProp__xmad5"><div class="SnowSku_SkuPropertyItem__propNameWrap__xmad5"><span>Длина:</span><span id="lenval">1M</span></div><ul class="SnowSku_SkuPropertyItem__optionList__xmad5" id="len">${aeVariants.map(([t, sku], i) => aeOpt(t, i === 0, "l" + i).replace("<button ", `<button data-sku="${sku}" `)).join("")}</ul></div></div><button>В корзину</button>${aeTiles}</main>${aeScript}`));
+// single variant + a seller-coupon price next to the displayed price (must NOT be recorded)
+write("ae/single.html", page("Обновление передних светодиодных фар для Porsche 718 | AliExpress", aeHead,
+  `<main>${aeH1("Обновление передних светодиодных фар для Porsche 718")}${aePrice(133735, `<div class="HazeProductPrice_SnowPrice__priceWithCouponBox__1c02e"><span>цена сейчас</span><a class="HazeProductPrice_SnowPrice__priceWithCoupon__1c02e">120&nbsp;132&nbsp;₽</a><div>взять купон на 13&nbsp;603&nbsp;₽</div></div>`)}<div class="SnowSku_SnowSku__propertyListContainer__34imu">${aeProp("Цвет", "Upgrade to 2024model", aeOpt("Upgrade to 2024model", true, "c0"))}${aeProp("Мощность", "45 Вт", aeOpt("45 Вт", true, "p0"))}</div><button>В корзину</button>${aeTiles}</main><script>history.replaceState(null,"","?sku_id=12000058034790509")</script>`));
+// no variant information at all: the page never writes sku_id into the URL (product-level fallback)
+write("ae/nosku.html", page("Кабель USB Type-C 3A для Samsung S10 S20 Xiaomi mi 11 | AliExpress", aeHead, `<main>${aeH1("Кабель USB Type-C 3A для Samsung S10 S20 Xiaomi mi 11")}${aePrice(182)}<button>В корзину</button>${aeTiles}</main>`));
+write("ae/removed.html", page("Страница товара не существует | 404 | AliExpress", "", `<main><div><h2>Такой страницы нет</h2><p>Но есть много других – начните с главной</p><a href="/">На главную</a></div>${aeTiles}</main>`));
+// SYNTHETIC: no live sold-out page was found; the text is the site's own i18n string ("Товар уже раскупили", "Нет в продаже")
+write("ae/soldout.html", page("Кабель USB Type-C 3A | AliExpress", aeHead, `<main>${aeH1("Кабель USB Type-C 3A для Samsung")}<div class="SnowOutOfStock"><div>Товар уже раскупили</div><p>Попробуйте подобрать себе что-нибудь другое</p></div>${aeTiles}</main><script>history.replaceState(null,"","?sku_id=12000027596743248")</script>`));
+write("ae/blocked.html", page("Пройдите проверку", "", `<div id="nocaptcha"></div>`));
+write("ae/failed.html", page("AliExpress", "", `<div id="root"></div>`));
 console.log("fixtures written to", root);

@@ -107,6 +107,7 @@ button.pressed:not(.row), .tab.pressed, .seg-item.pressed { transform: scale(var
 .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
 .row-title { font-size: var(--fs-body); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .row-cap { color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-cap.wrap { white-space: normal; overflow: visible; }
 .row-end { display: flex; flex-direction: column; align-items: flex-end; flex: none; gap: 0.125rem; }
 .row-price { font-size: var(--fs-price); font-weight: var(--fw-semibold); white-space: nowrap; }
 .row-value { color: var(--muted); white-space: nowrap; }

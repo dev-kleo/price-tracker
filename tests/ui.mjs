@@ -304,5 +304,24 @@ await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
 check("an answer is remembered and never asked again", (await p4.locator(".rate").count()) === 0 && (await env4.sw.evaluate(() => chrome.storage.local.get("rateDone"))).rateDone === true);
 await env4.close();
 
+// ---- 12. AliExpress in the popup: store name, variant row, enable button -------------------------------------------------------------
+const env5 = await launch();
+await env5.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+const aeP = product("ae:1005003040504687:12000027596743249", "Кабель USB Type-C 3A", { currentPrice: 231, store: "ae", variantLabel: "Цвет: Black For Type C · Длина: 2M", canonicalUrl: "https://aliexpress.ru/item/1005003040504687.html?sku_id=12000027596743249", url: "https://aliexpress.ru/item/1005003040504687.html?sku_id=12000027596743249" });
+await seedInto(env5, { products: [aeP], history: hist(aeP.id, [10, 0.1], [260, 231]) });
+const p5 = await env5.ctx.newPage(); await p5.setViewportSize({ width: 420, height: 600 });
+await p5.goto(`chrome-extension://${env5.extId}/popup.html`); await p5.waitForSelector(".row.product"); await sleep(500);
+check("AliExpress item shows its store in the list", (await p5.locator(".row-cap").first().innerText()).startsWith("AliExpress"), await p5.locator(".row-cap").first().innerText());
+await p5.locator(".row.product").click(); await sleep(900);
+check("detail shows the variant and an «Открыть на AliExpress» link", (await p5.locator(".row-cap.wrap", { hasText: "Длина: 2M" }).count()) === 1 && (await p5.locator("a.pill.primary", { hasText: "Открыть на AliExpress" }).count()) === 1);
+await p5.screenshot({ path: path.join(SHOTS, "17-detail-aliexpress.png") });
+await p5.locator(".back").last().click(); await sleep(700);
+await p5.locator(".topbar .round").first().click(); await sleep(400);
+check("menu offers «Включить AliExpress» while access is not granted", (await p5.locator(".menu-item", { hasText: "Включить AliExpress" }).count()) === 1);
+await p5.locator(".menu-item", { hasText: "Настройки" }).click(); await sleep(800);
+check("settings has the AliExpress row with an enable button", (await p5.locator(".row", { hasText: "AliExpress" }).locator("button", { hasText: "Включить" }).count()) === 1);
+await p5.screenshot({ path: path.join(SHOTS, "18-settings-aliexpress.png") });
+await env5.close();
+
 const failed = finish();
 process.exit(failed ? 1 : 0);

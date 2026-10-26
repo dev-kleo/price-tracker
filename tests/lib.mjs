@@ -17,30 +17,44 @@ export const FIXTURES = path.join(import.meta.dirname, "fixtures");
 export const SITES = {
   ozon: { host: "www.ozon.ru", url: "https://www.ozon.ru/product/elektrochaynik-1234567/", match: "https://www.ozon.ru/*", snapshotMsg: "GET_PAGE_SNAPSHOT", trackMsg: "TRACK_PRODUCT", productId: "1234567" },
   wb: { host: "www.wildberries.ru", url: "https://www.wildberries.ru/catalog/1415895532/detail.aspx", match: "https://www.wildberries.ru/*", snapshotMsg: "GET_WB_SNAPSHOT", trackMsg: "WB_TRACK", productId: "wb:1415895532" },
+  ae: { host: "aliexpress.ru", url: "https://aliexpress.ru/item/1005003040504687.html?sku_id=12000027596743248", match: "https://aliexpress.ru/*", snapshotMsg: "GET_AE_SNAPSHOT", trackMsg: "AE_TRACK", productId: "ae:1005003040504687:12000027596743248" },
   ym: { host: "market.yandex.ru", url: "https://market.yandex.ru/card/kruzhka-dlya-chaya/5090882755", match: "https://market.yandex.ru/*", snapshotMsg: "GET_YM_SNAPSHOT", trackMsg: "YM_TRACK", productId: "ym:5090882755" },
 };
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // throwaway self-signed certificate (generated once with openssl, git-ignored)
 function certificate() {
-  const dir = path.join(import.meta.dirname, ".certs"), key = path.join(dir, "key.pem"), cert = path.join(dir, "cert.pem");
+  const dir = path.join(import.meta.dirname, ".certs"), key = path.join(dir, "key.pem"), cert = path.join(dir, "cert3.pem");
   if (!fs.existsSync(cert)) {
     fs.mkdirSync(dir, { recursive: true });
     const exe = [process.env.OPENSSL, "openssl", "C:/Program Files/Git/usr/bin/openssl.exe", "C:/Program Files/Git/mingw64/bin/openssl.exe"]
       .filter(Boolean).find((c) => { try { execFileSync(c, ["version"], { stdio: "ignore" }); return true; } catch { return false; } });
     if (!exe) throw new Error("openssl not found (set OPENSSL=path to openssl.exe)");
-    const san = `subjectAltName=${["www.ozon.ru", "ozon.ru", "www.wildberries.ru", "wildberries.ru", "market.yandex.ru"].map((h) => `DNS:${h}`).join(",")}`;
+    const san = `subjectAltName=${["www.ozon.ru", "ozon.ru", "www.wildberries.ru", "wildberries.ru", "market.yandex.ru", "aliexpress.ru", "www.aliexpress.ru"].map((h) => `DNS:${h}`).join(",")}`;
     execFileSync(exe, ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert, "-days", "30", "-subj", "/CN=fixtures", "-addext", san],
       { stdio: "ignore", env: { ...process.env, MSYS_NO_PATHCONV: "1", MSYS2_ARG_CONV_EXCL: "*" } });
   }
   return { key: fs.readFileSync(key), cert: fs.readFileSync(cert) };
 }
 
-export async function launch({ headless = true } = {}) {
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "pt-e2e-"));
+// The shipped manifest asks for AliExpress access at runtime (optional_host_permissions), which an automated browser cannot approve.
+// For tests that need AliExpress, run a temporary copy of the extension where those hosts are granted at install time. The code under test is identical.
+export function extensionWithAliExpress() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pt-ext-"));
+  const skip = new Set(["tests", ".git", "docs", "github-profile", "node_modules", ".impeccable"]);
+  fs.cpSync(EXT, dir, { recursive: true, filter: (src) => !skip.has(path.relative(EXT, src).split(path.sep)[0]) });
+  const m = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
+  m.host_permissions.push(...m.optional_host_permissions); delete m.optional_host_permissions;
+  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(m, null, 2));
+  return dir;
+}
+
+export async function launch({ headless = true, grantAe = false, reuse = null } = {}) {
+  const extDir = reuse?.extDir ?? (grantAe ? extensionWithAliExpress() : EXT);
+  const userDataDir = reuse?.userDataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "pt-e2e-"));
   // which saved page each marketplace currently serves ("abort" = connection dropped, "http500" = empty server error)
-  const serving = { ozon: "available", wb: "available", ym: "available" };
-  const hostToSite = { "www.ozon.ru": "ozon", "ozon.ru": "ozon", "www.wildberries.ru": "wb", "wildberries.ru": "wb", "market.yandex.ru": "ym" };
+  const serving = { ozon: "available", wb: "available", ym: "available", ae: "variant" };
+  const hostToSite = { "www.ozon.ru": "ozon", "ozon.ru": "ozon", "www.wildberries.ru": "wb", "wildberries.ru": "wb", "market.yandex.ru": "ym", "aliexpress.ru": "ae", "www.aliexpress.ru": "ae" };
   const server = https.createServer(certificate(), (req, res) => {
     const site = hostToSite[String(req.headers.host).replace(/:\d+$/, "")];
     if (!site || /\.(png|jpe?g|gif|webp|svg|ico|css|js|json|woff2?)(\?|$)/i.test(req.url)) { res.writeHead(204); return res.end(); }
@@ -55,7 +69,7 @@ export async function launch({ headless = true } = {}) {
   const rules = Object.keys(hostToSite).map((h) => `MAP ${h} 127.0.0.1:${port}`).join(",");
   const ctx = await chromium.launchPersistentContext(userDataDir, {
     executablePath: CHROMIUM, headless, viewport: { width: 1200, height: 900 }, deviceScaleFactor: 1, ignoreHTTPSErrors: true,
-    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=${rules}`, "--ignore-certificate-errors", "--no-proxy-server"], // no system proxy: it would bypass the host mapping
+    args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=${rules}`, "--ignore-certificate-errors", "--no-proxy-server"], // no system proxy: it would bypass the host mapping
   });
   let sw = ctx.serviceWorkers().find((w) => w.url().endsWith("/assets/background.js"));
   if (!sw) sw = await ctx.waitForEvent("serviceworker", { predicate: (w) => w.url().endsWith("/assets/background.js"), timeout: 20000 });
@@ -73,8 +87,8 @@ export async function launch({ headless = true } = {}) {
     }
     throw new Error(`content script for ${site} never answered`);
   };
-  const close = async () => { try { await ctx.close(); } finally { server.close(); fs.rmSync(userDataDir, { recursive: true, force: true }); } };
-  return { ctx, sw, extId, rpc, rpcPage, serving, snapshotOf, close, setSync: (o) => sw.evaluate((x) => chrome.storage.sync.set(x), o) };
+  const close = async ({ keep = false } = {}) => { try { await ctx.close(); } finally { server.close(); if (!keep) { fs.rmSync(userDataDir, { recursive: true, force: true }); if (grantAe || reuse) fs.rmSync(extDir, { recursive: true, force: true }); } } };
+  return { userDataDir, extDir, ctx, sw, extId, rpc, rpcPage, serving, snapshotOf, close, setSync: (o) => sw.evaluate((x) => chrome.storage.sync.set(x), o) };
 }
 
 // tiny assertion collector

@@ -1,6 +1,6 @@
 # Price Tracker for Ozon, Wildberries & Yandex Market
 
-Chrome extension (Manifest V3) that tracks prices on Ozon, Wildberries and Yandex Market. All data stays in the browser: no server, no account.
+Chrome extension (Manifest V3) that tracks prices on Ozon, Wildberries, Yandex Market and (optionally) AliExpress Russia. All data stays in the browser: no server, no account.
 
 <p align="center"><img src="docs/demo.gif" alt="Demo: list, product chart with scrubbing, folders and group chart" width="360"></p>
 
@@ -15,6 +15,9 @@ Chrome extension (Manifest V3) that tracks prices on Ozon, Wildberries and Yande
 - Target price alerts, "60-day low" only when the history really covers 60 days, savings over the last 30 days computed from stored history.
 - Light/dark theme, Russian and English, keyboard navigation, `prefers-reduced-motion`, `prefers-reduced-transparency` and `prefers-contrast` supported.
 - Export / import of all data as JSON.
+
+## AliExpress (optional)
+AliExpress access is an *optional host permission*: nothing changes for existing users on update, and the browser asks only when the user presses "Включить AliExpress". The background worker then registers `assets/ae-content.js` with `chrome.scripting.registerContentScripts` (and again on every worker start). Each variant (`sku_id`) is tracked as its own item (`ae:<item>:<sku>`) with its own history; only the public displayed price is recorded, never coupon or account-specific amounts. `node tests/live-ae.mjs` runs the real extension code against the live site (manual).
 
 ## How it works
 - Service worker (`assets/background.js`) schedules checks with `chrome.alarms`, parses pages (fetch or an offscreen document) and stores data in IndexedDB (`products`, `priceHistory`, `folders`).

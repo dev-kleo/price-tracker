@@ -21,7 +21,7 @@ const state = {
   products: [], insights: null, folders: [], health: {}, settings: { ...DEFAULTS },
   q: "", seg: "all", sort: "recent", store: "all", status: "any", refreshingAll: false,
   share: { firstRunAt: 0, dismissed: false, hiddenUntil: 0 },
-  rate: { done: false, hiddenUntil: 0, step: "ask" },
+  rate: { done: false, hiddenUntil: 0, step: "ask" }, ae: false,
 };
 const t = () => STR[state.lang];
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload }).then((res) => {
@@ -45,8 +45,8 @@ const isUnavailable = (p) => p.status === "unavailable"; // a missing status mea
 const isErrored = (p) => p.trackingStatus === "error" && !isUnavailable(p);
 const isPaused = (p) => p.trackingStatus === "paused";
 const isTargetReached = (p) => p.targetPrice !== undefined && p.currentPrice <= p.targetPrice && !isUnavailable(p);
-const storeOf = (p) => (p.store === "wb" ? "wb" : p.store === "ym" ? "ym" : "ozon");
-const storeName = (p) => ({ ozon: t().storeOzon, wb: t().storeWb, ym: t().storeYm })[storeOf(p)];
+const storeOf = (p) => (p.store === "wb" ? "wb" : p.store === "ym" ? "ym" : p.store === "ae" ? "ae" : "ozon");
+const storeName = (p) => ({ ozon: t().storeOzon, wb: t().storeWb, ym: t().storeYm, ae: t().storeAe })[storeOf(p)];
 const kindOf = (p) => (p.historyPriceKind === "ozon_card" ? "ozon_card" : "unknown");
 const lastSeenAt = (p) => p.lastSuccessfulCheckAt ?? p.updatedAt ?? Date.now();
 const imageOf = (p) => (typeof p.imageUrl === "string" && p.imageUrl.startsWith("https://") ? p.imageUrl : null);
@@ -251,7 +251,7 @@ function renderList() {
 function banners() {
   const out = [];
   if (state.settings.globalPause) out.push(h("div", { class: "notice" }, t().globalPaused));
-  const names = { ozon: t().storeOzon, wb: t().storeWb, ym: t().storeYm };
+  const names = { ozon: t().storeOzon, wb: t().storeWb, ym: t().storeYm, ae: t().storeAe };
   for (const [k, name] of Object.entries(names)) {
     if ((state.health[k]?.fails ?? 0) >= 3 && state.products.some((p) => storeOf(p) === k)) out.push(h("div", { class: "notice warn", role: "status" }, t().health(name, state.health[k].fails, state.health[k].lastError)));
   }
@@ -272,6 +272,7 @@ function openMore(trigger) {
     pop.append(
       item(t().refreshAll, refreshAll),
       ...(!IN_TAB ? [item(t().openedInTab, () => chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?tab=1") }))] : []),
+      ...(!state.ae ? [item(t().aeEnable, enableAe)] : []),
       item(t().settingsTitle, openSettings));
   });
 }
@@ -289,7 +290,7 @@ function openFilterSheet() {
     };
     body.append(
       ...radios(t().sortTitle, [["recent", t().sort.recent], ["drop", t().sort.drop], ["low", t().sort.low], ["target", t().sort.target], ["name", t().sort.name]], "sort"),
-      ...radios(t().storeTitle, [["all", t().segAll], ["ozon", t().storeOzon], ["wb", t().storeWb], ["ym", t().storeYm]], "store"),
+      ...radios(t().storeTitle, [["all", t().segAll], ["ozon", t().storeOzon], ["wb", t().storeWb], ["ym", t().storeYm], ...(state.ae || state.products.some((p) => storeOf(p) === "ae") ? [["ae", t().storeAe]] : [])], "store"),
       ...radios(t().statusTitle, [["any", t().stAll], ["paused", t().stPaused], ["target", t().stTarget]], "status"));
   } });
 }
@@ -437,6 +438,7 @@ function detailContent(s) {
     h("option", { value: "", selected: !p.folderId }, t().folderNone), state.folders.map((f) => h("option", { value: f.id, selected: f.id === p.folderId }, f.name)));
   const facts = [
     rowOf(t().rowStore, storeName(p)),
+    p.variantLabel ? h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, t().rowVariant), h("span", { class: "row-cap wrap" }, p.variantLabel))) : null,
     h("label", { class: "row row-field" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, t().rowFolder)), h("span", { class: "row-end" }, folderSelect)),
     p.historyPriceKind === "ozon_card" && p.regularPrice ? rowOf(t().withoutCard, money(p.regularPrice)) : null,
     p.store === "ym" && p.regularPrice ? rowOf(t().oldPrice, money(p.regularPrice), p.discountPercent ? `−${p.discountPercent}%` : undefined) : null,
@@ -719,6 +721,22 @@ document.addEventListener("fullscreenchange", () => { document.querySelectorAll(
 window.addEventListener("resize", debounce(() => { if (document.fullscreenElement) redrawCharts(); }, 150));
 
 /* ===================================================================== settings */
+/* AliExpress is an optional store: the browser asks for access to aliexpress.ru only when the user presses the button. The background
+   script registers the content script when the access is granted (and again after every restart or update). */
+const AE_ORIGINS = ["https://aliexpress.ru/*", "https://www.aliexpress.ru/*"];
+async function refreshAe() { try { state.ae = await chrome.permissions.contains({ origins: AE_ORIGINS }); } catch { state.ae = false; } }
+function enableAe() {
+  // chrome.permissions.request needs the click's user gesture, so it is called before anything is awaited
+  chrome.permissions.request({ origins: AE_ORIGINS }).then(async (ok) => {
+    await refreshAe(); renderRoot(); stack.at(-1)?.render?.();
+    toast(layer, ok ? t().aeGranted : t().aeDenied);
+  }).catch(() => toast(layer, t().aeDenied));
+}
+async function disableAe() {
+  try { await chrome.permissions.remove({ origins: AE_ORIGINS }); } catch { /* ignore */ }
+  await refreshAe(); renderRoot(); stack.at(-1)?.render?.(); toast(layer, t().aeOff);
+}
+
 function download(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
   const a = h("a", { href: url, download: name });
@@ -749,6 +767,9 @@ function openSettings() {
         switchRow(t().useFetch, s.useFetch, (v) => saveSettings({ useFetch: v })), switchRow(t().globalPause, s.globalPause, (v) => saveSettings({ globalPause: v }))),
       sectionTitle(t().secCharts),
       group(switchRow(t().showRegular, s.showRegularPrice, (v) => saveSettings({ showRegularPrice: v }))),
+      sectionTitle(t().secStores),
+      group(h("div", { class: "row row-field" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, t().aeRow), h("span", { class: "row-cap wrap" }, state.ae ? t().aeEnabled : t().aeHint)),
+        h("button", { class: "pill tint small", type: "button", onclick: () => (state.ae ? disableAe() : enableAe()) }, state.ae ? t().aeDisable : t().aeOn))),
       sectionTitle(t().secLook), group(field(t().theme, themeSeg.el), field(t().language, langSeg.el)),
       sectionTitle(t().secData),
       group(h("button", { class: "row action", type: "button", onclick: async () => { try { download(`price-tracker-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await send("EXPORT_DATA"))); } catch { /* ignore */ } } }, h("span", { class: "row-title" }, t().export)),
@@ -865,6 +886,7 @@ function setupResize() {
   try { chrome.action.setBadgeText({ text: "" }); } catch { /* ignore */ }
   renderTabbar(); renderRoot();
   const stored = await chrome.storage.sync.get({ ...DEFAULTS, language: "ru" });
+  await refreshAe();
   state.lang = stored.language === "en" ? "en" : "ru"; setLang(state.lang); document.documentElement.lang = state.lang;
   Object.keys(DEFAULTS).forEach((k) => { state.settings[k] = stored[k]; });
   applyTheme(stored.theme);
