@@ -21,7 +21,7 @@ const state = {
   products: [], insights: null, folders: [], health: {}, settings: { ...DEFAULTS },
   q: "", seg: "all", sort: "recent", store: "all", status: "any", refreshingAll: false,
   share: { firstRunAt: 0, dismissed: false, hiddenUntil: 0 },
-  rate: { done: false, hiddenUntil: 0, step: "ask" }, ae: false,
+  rate: { done: false, hiddenUntil: 0, step: "ask" }, ae: false, shared: undefined, tabKind: "unknown",
 };
 const t = () => STR[state.lang];
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload }).then((res) => {
@@ -228,7 +228,7 @@ function productsTab() {
   const nodes = [
     h("div", { class: "topbar" }, h("span", { class: "status-line", role: "status" }, status), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget))),
     h("h1", { class: "title" }, t().appTitle),
-    ...banners(), savingsCard(), rateCard(),
+    ...banners(), savingsCard(), sharedCard(), rateCard(),
     h("div", { class: "searchrow" }, h("label", { class: "field" }, icon("search", "icon field-icon"), search, clear), roundButton("filter", t().filtersBtn, openFilterSheet)),
     seg.el, listHost, rateVisible() ? null : shareLine(),
   ];
@@ -239,7 +239,7 @@ function renderList() {
   if (!productsUi) return;
   const list = visibleProducts("all");
   let empty = null;
-  if (state.loaded && !state.products.length) empty = emptyState(t().emptyProducts, t().emptyImport, pickImportFile);
+  if (state.loaded && !state.products.length) empty = emptyOnboarding();
   else if (state.loaded && !list.length && !state.q && state.store === "all" && state.status === "any") {
     const msg = { dropped: t().emptyDropped, gone: t().emptyGone, errors: t().emptyErrors }[state.seg];
     if (msg) empty = emptyState(msg, t().showAllProducts, () => { state.seg = "all"; renderRoot(); });
@@ -403,7 +403,8 @@ function openDetail(id) {
 function detailContent(s) {
   const p = state.products.find((x) => x.id === s.id);
   if (!p) { setTimeout(pop); return []; }
-  if (!s.histPromise) s.histPromise = send("GET_HISTORY", { productId: s.id, since: 0 }).then((rows) => { s.hist = rows ?? []; s.render(); }).catch(() => { s.hist = []; s.render(); });
+  if (!s.histPromise) s.histPromise = Promise.all([send("GET_HISTORY", { productId: s.id, since: 0 }), state.shared === true ? send("GET_SHARED_HISTORY", { id: s.id }).catch(() => []) : []])
+    .then(([rows, shared]) => { s.hist = mergeHistory(rows ?? [], shared ?? []); s.render(); }).catch(() => { s.hist = []; s.render(); });
   const gone = isUnavailable(p), err = isErrored(p), hist = s.hist ?? [], kind = kindOf(p);
   const mine = hist.filter((x) => (x.priceKind ?? "unknown") === kind);
   const low60 = isLow60(p, hist);
@@ -503,6 +504,8 @@ function detailSeries(p, hist, range) {
 
 function drawDetailChart(s, p, host, hist, mine) {
   const series = detailSeries(p, hist, s.range);
+  // fewer than 2 real data points in total (local + shared): say when data will come instead of drawing a blank chart
+  if (Math.max(mine.length, hist.filter((x) => (x.priceKind ?? "unknown") === "unknown").length) < 2) { host.__chart?.destroy(); host.replaceChildren(h("p", { class: "hint-text" }, t().emptyHistory)); return; }
   if (!series[0].pts.length) { host.__chart?.destroy(); host.replaceChildren(h("p", { class: "hint-text" }, t().noHistory)); return; }
   const lowAll = mine.length ? Math.min(...mine.map((x) => x.price)) : null, hiAll = mine.length ? Math.max(...mine.map((x) => x.price)) : null;
   const fs = !!document.fullscreenElement && document.fullscreenElement.contains(host);
@@ -721,6 +724,32 @@ document.addEventListener("fullscreenchange", () => { document.querySelectorAll(
 window.addEventListener("resize", debounce(() => { if (document.fullscreenElement) redrawCharts(); }, 150));
 
 /* ===================================================================== settings */
+/* ---- shared price history (opt-in) and first-run states ---- */
+const SUPPORTED_URL = /^https:\/\/(?:(?:www\.)?(?:ozon|wildberries|aliexpress)\.ru|market\.yandex\.ru)\//;
+async function detectTab() {
+  if (IN_TAB) return "unknown";
+  try { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); return tab?.url && SUPPORTED_URL.test(tab.url) ? "store" : "other"; } catch { return "unknown"; }
+}
+/** Local history plus the shared one, one point per (kind, timestamp), oldest first. */
+function mergeHistory(local, shared) {
+  const seen = new Set(), out = [];
+  for (const x of [...local, ...shared]) { const key = `${x.priceKind ?? "unknown"}:${x.timestamp}`; if (!seen.has(key)) { seen.add(key); out.push(x); } }
+  return out.sort((a, b) => a.timestamp - b.timestamp);
+}
+async function setShared(on) { state.shared = on; try { await chrome.storage.sync.set({ sharedHistory: on }); } catch { /* ignore */ } }
+const storeChips = () => h("div", { class: "chips" }, [["ozon", "Ozon"], ["wb", "Wildberries"], ["ym", "Яндекс Маркет"], ["ae", "AliExpress"]].map(([c, n]) => h("span", { class: `chip ${c}` }, n)));
+function emptyOnboarding() {
+  const text = state.tabKind === "store" ? t().onStorePage : state.tabKind === "other" ? t().unsupportedPage : t().emptyTrack;
+  return h("div", { class: "empty onboard" }, h("p", { class: "empty-text" }, text), storeChips(), h("button", { class: "pill tint", type: "button", onclick: pickImportFile }, t().emptyImport));
+}
+/** Asked once: nothing is sent until the user says yes (the welcome page asks new users the same thing). */
+function sharedCard() {
+  if (!state.loaded || state.shared !== undefined) return null;
+  const answer = async (on) => { await setShared(on); renderRoot(); };
+  return h("section", { class: "card rate", role: "region", "aria-label": t().sharedTitle }, h("div", { class: "rate-title" }, t().sharedTitle), h("p", { class: "caption" }, t().sharedText),
+    h("div", { class: "pills-row" }, h("button", { class: "pill primary", type: "button", onclick: () => answer(true) }, t().sharedYes), h("button", { class: "pill tint", type: "button", onclick: () => answer(false) }, t().sharedNo)));
+}
+
 /* AliExpress is an optional store: the browser asks for access to aliexpress.ru only when the user presses the button. The background
    script registers the content script when the access is granted (and again after every restart or update). */
 const AE_ORIGINS = ["https://aliexpress.ru/*", "https://www.aliexpress.ru/*"];
@@ -769,7 +798,8 @@ function openSettings() {
       group(switchRow(t().showRegular, s.showRegularPrice, (v) => saveSettings({ showRegularPrice: v }))),
       sectionTitle(t().secStores),
       group(h("div", { class: "row row-field" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, t().aeRow), h("span", { class: "row-cap wrap" }, state.ae ? t().aeEnabled : t().aeHint)),
-        h("button", { class: "pill tint small", type: "button", onclick: () => (state.ae ? disableAe() : enableAe()) }, state.ae ? t().aeDisable : t().aeOn))),
+        h("button", { class: "pill tint small", type: "button", onclick: () => (state.ae ? disableAe() : enableAe()) }, state.ae ? t().aeDisable : t().aeOn)),
+        switchRow(t().sharedSwitch, state.shared === true, (v) => setShared(v), t().sharedHint)),
       sectionTitle(t().secLook), group(field(t().theme, themeSeg.el), field(t().language, langSeg.el)),
       sectionTitle(t().secData),
       group(h("button", { class: "row action", type: "button", onclick: async () => { try { download(`price-tracker-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await send("EXPORT_DATA"))); } catch { /* ignore */ } } }, h("span", { class: "row-title" }, t().export)),
@@ -812,7 +842,7 @@ async function dismissShare() { state.share.dismissed = true; try { await chrome
 const RATE_MIN_DAYS = 7, RATE_MIN_PRODUCTS = 3, RATE_SNOOZE_DAYS = 30;
 function rateVisible() {
   const r = state.rate, now = Date.now(), first = state.share.firstRunAt;
-  return !r.done && first > 0 && now - first >= RATE_MIN_DAYS * DAY && now >= r.hiddenUntil && state.products.length >= RATE_MIN_PRODUCTS && (state.insights?.summary?.drop30Total ?? 0) > 0;
+  return state.shared !== undefined && !r.done && first > 0 && now - first >= RATE_MIN_DAYS * DAY && now >= r.hiddenUntil && state.products.length >= RATE_MIN_PRODUCTS && (state.insights?.summary?.drop30Total ?? 0) > 0;
 }
 async function saveRate(patch) { Object.assign(state.rate, patch); try { await chrome.storage.local.set({ rateDone: state.rate.done, rateHiddenUntil: state.rate.hiddenUntil }); } catch { /* ignore */ } }
 function rateCard() {
@@ -887,6 +917,8 @@ function setupResize() {
   renderTabbar(); renderRoot();
   const stored = await chrome.storage.sync.get({ ...DEFAULTS, language: "ru" });
   await refreshAe();
+  state.shared = (await chrome.storage.sync.get("sharedHistory").catch(() => ({}))).sharedHistory;
+  state.tabKind = await detectTab();
   state.lang = stored.language === "en" ? "en" : "ru"; setLang(state.lang); document.documentElement.lang = state.lang;
   Object.keys(DEFAULTS).forEach((k) => { state.settings[k] = stored[k]; });
   applyTheme(stored.theme);

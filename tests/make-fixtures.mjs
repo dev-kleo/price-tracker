@@ -97,4 +97,13 @@ write("ae/removed.html", page("Страница товара не существ
 write("ae/soldout.html", page("Кабель USB Type-C 3A | AliExpress", aeHead, `<main>${aeH1("Кабель USB Type-C 3A для Samsung")}<div class="SnowOutOfStock"><div>Товар уже раскупили</div><p>Попробуйте подобрать себе что-нибудь другое</p></div>${aeTiles}</main><script>history.replaceState(null,"","?sku_id=12000027596743248")</script>`));
 write("ae/blocked.html", page("Пройдите проверку", "", `<div id="nocaptcha"></div>`));
 write("ae/failed.html", page("AliExpress", "", `<div id="root"></div>`));
+
+// ------------------------------------------------------------------ shared-history tests (SYNTHETIC variants of the pages above)
+write("wb/cheaper.html", page("Кружка для чая и кофе фарфор- Такса, 340 мл COZY HOME 1415895532 купить за 999 ₽ в интернет‑магазине Wildberries", "",
+  `<main><div class="productPageContent--EAcc3">${wbHeader(`<div class="priceBlock--JPTEi priceBlockCommon--zy6gk"><h3 class="mo-typography priceBlockWalletPrice--Eq4oH">980 ₽</h3><h3 class="mo-typography priceBlockFinalPrice--B5CAH">999 ₽</h3></div><button>В корзину</button>`)}</div></div>${wbTiles}</main>`));
+// Ozon with an Ozon-card price: the card price is what the extension tracks, the public price is the one WITHOUT the card
+write("ozon/card.html", page(ozT, ozHead + ozLd("InStock", 1399), `<main>${ozH1}<div data-widget="webPrice"><span>1 399 ₽ с Ozon Картой</span><span>1 499 ₽ без Ozon Карты</span></div><div data-widget="webAddToCart"><button>Добавить в корзину</button></div>${ozTiles}</main>`));
+// Yandex Market with the Yandex Pay price shown first
+write("ym/pay.html", page("Кружка керамическая для чая — купить на Яндекс Маркете", ymLd("InStock", 127),
+  `<main>${ymH1}<div data-zone-name="price"><div><span>127 ₽ с Яндекс Пэй</span></div><div><span>340 ₽</span><span>–63%</span></div></div><div><button data-auto="cartButton">В корзину</button></div>${ymTiles}</main>`));
 console.log("fixtures written to", root);

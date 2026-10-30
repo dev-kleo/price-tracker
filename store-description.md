@@ -2,9 +2,9 @@
 
 ## Русский
 
-Отслеживание цен на Ozon, Wildberries, Яндекс Маркете и AliExpress. История цен, графики, уведомления о снижении. Все данные хранятся только в вашем браузере.
+Отслеживание цен на Ozon, Wildberries, Яндекс Маркете и AliExpress. История цен, графики, уведомления о снижении. Ваш список товаров хранится только в вашем браузере.
 
-Откройте страницу товара, нажмите «Отслеживать цену», и расширение будет само проверять цену в фоне. Без регистрации, без сервера, без отправки ваших данных.
+Откройте страницу товара, нажмите «Отслеживать цену», и расширение будет само проверять цену в фоне. Без регистрации. Общая история цен включается только по вашему согласию.
 
 МАГАЗИНЫ
 • Ozon
@@ -52,8 +52,13 @@ AliExpress
 • Экспорт и импорт всех данных в файл JSON.
 • Русский и английский язык.
 
+ОБЩАЯ ИСТОРИЯ ЦЕН (по желанию)
+• Выключена, пока вы сами её не включите на приветственной странице или в Настройках.
+• Если включить, расширение отправляет на наш сервер только магазин, ID товара и цену (в рублях) со страницы товара, которую вы открыли, и показывает на графике историю, собранную другими. Не отправляются ваш список товаров, адреса страниц, аккаунт и личные данные. Цена по карте Ozon и с Яндекс Пэй не отправляется.
+• Выключается в любой момент.
+
 ПРИВАТНОСТЬ
-• Данные (товары, история, папки, настройки) хранятся локально в браузере. Мы их не собираем и никуда не отправляем.
+• Ваши товары, папки, история и настройки хранятся локально в браузере. Они не отправляются, кроме трёх значений общей истории, если вы её включили.
 • Разрешения нужны только для работы: фоновые проверки (alarms), уведомления, хранение данных, чтение страниц поддерживаемых магазинов. Доступ к AliExpress запрашивается отдельно и только по вашему действию.
 • Расширение не связано с Ozon, Wildberries, Яндекс Маркетом и AliExpress.
 
@@ -63,9 +68,9 @@ AliExpress
 
 ## English
 
-Price tracker for Ozon, Wildberries, Yandex Market and AliExpress. Price history, charts and price-drop alerts. All data stays in your browser.
+Price tracker for Ozon, Wildberries, Yandex Market and AliExpress. Price history, charts and price-drop alerts. Your product list stays in your browser.
 
-Open a product page, press "Track price", and the extension checks the price in the background. No account, no server, nothing is sent anywhere.
+Open a product page, press "Track price", and the extension checks the price in the background. No account. Shared price history is only on if you agree.
 
 STORES
 • Ozon
@@ -113,8 +118,13 @@ CONVENIENCE
 • Export and import all data as JSON.
 • Russian and English.
 
+SHARED PRICE HISTORY (optional)
+• Off until you turn it on, on the welcome page or in Settings.
+• When on, the extension sends our server only the store, the product ID and the price (in rubles) from a product page you open, and shows on the chart the history collected from others. Your product list, page addresses, account and personal data are not sent. The Ozon card price and the Yandex Pay price are not sent.
+• You can turn it off at any time.
+
 PRIVACY
-• Products, history, folders and settings are stored locally in your browser. We do not collect or send them.
+• Your products, folders, history and settings are stored locally in your browser. They are not sent, except the three values of the shared history if you turned it on.
 • Permissions are used only to work: background checks (alarms), notifications, storage, and reading pages of the supported stores. AliExpress access is requested separately and only when you ask for it.
 • Not affiliated with Ozon, Wildberries, Yandex Market or AliExpress.
 

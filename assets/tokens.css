@@ -122,6 +122,12 @@
   --chart-9: #8A3FB3;
   --chart-10: #4A4A4F;
   --chart-gone: #8E8E93;
+  --store-ozon: #005BFF;
+  --store-wb: #CB11AB;
+  --store-ym: #FFCC00;
+  --store-ae: #E62E04;
+  --on-store: #FFFFFF;
+  --on-store-ym: #000000;
   --chart-grid: var(--hairline);
   --chart-ink: var(--muted);
 

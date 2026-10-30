@@ -47,7 +47,7 @@ products.push(product("8000003", "Минимум за 60 дней", { currentPri
 history.push(...hist("8000003", [70, 40, 20, 0.1], [1000, 950, 900, 800]));
 
 const env = await launch();
-await env.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+await env.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 await seedInto(env, { folders, products, history });
 
 const errors = [];
@@ -254,7 +254,7 @@ await env.close();
 
 // ---- 9. empty states on a clean profile ---------------------------------------------------------------------------------------------------------
 const env2 = await launch();
-await env2.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+await env2.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 const p2 = await env2.ctx.newPage(); await p2.setViewportSize({ width: 420, height: 600 });
 p2.on("pageerror", (e) => errors.push(String(e)));
 await p2.goto(`chrome-extension://${env2.extId}/popup.html`); await p2.waitForSelector(".empty", { timeout: 10000 }); await sleep(600);
@@ -265,7 +265,7 @@ await env2.close();
 
 // ---- 10. edge data: one product without history; every product unavailable -----------------------------------------------------------
 const env3 = await launch();
-await env3.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+await env3.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 await seedInto(env3, { products: [product("8100001", "Единственный", { currentPrice: 777 })], history: [] });
 const p3 = await env3.ctx.newPage(); await p3.setViewportSize({ width: 420, height: 600 });
 const errs3 = []; p3.on("pageerror", (e) => errs3.push(String(e))); p3.on("console", (m) => { if (m.type() === "error") errs3.push(m.text()); });
@@ -282,7 +282,7 @@ await env3.close();
 
 // ---- 11. review prompt ---------------------------------------------------------------------------------------------------------------
 const env4 = await launch();
-await env4.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+await env4.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 const rp = ["8200001", "8200002", "8200003"].map((id, i) => product(id, `Отзыв ${i}`, { currentPrice: 800 }));
 await seedInto(env4, { products: rp, history: rp.flatMap((p) => hist(p.id, [40, 10], [1000, 800])) });
 const p4 = await env4.ctx.newPage(); await p4.setViewportSize({ width: 420, height: 600 });
@@ -306,7 +306,7 @@ await env4.close();
 
 // ---- 12. AliExpress in the popup: store name, variant row, enable button -------------------------------------------------------------
 const env5 = await launch();
-await env5.setSync({ useFetch: false, notificationsEnabled: false, language: "ru" });
+await env5.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 const aeP = product("ae:1005003040504687:12000027596743249", "Кабель USB Type-C 3A", { currentPrice: 231, store: "ae", variantLabel: "Цвет: Black For Type C · Длина: 2M", canonicalUrl: "https://aliexpress.ru/item/1005003040504687.html?sku_id=12000027596743249", url: "https://aliexpress.ru/item/1005003040504687.html?sku_id=12000027596743249" });
 await seedInto(env5, { products: [aeP], history: hist(aeP.id, [10, 0.1], [260, 231]) });
 const p5 = await env5.ctx.newPage(); await p5.setViewportSize({ width: 420, height: 600 });
