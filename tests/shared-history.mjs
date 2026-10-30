@@ -14,15 +14,55 @@ for (let i = 0; i < 20 && !welcome; i++) { welcome = env.ctx.pages().find((p) =>
 check("welcome page opens on a fresh install", !!welcome, env.ctx.pages().map((p) => p.url()));
 if (welcome) {
   await welcome.waitForSelector(".steps li");
+  const visible = (sel) => welcome.locator(sel).locator("visible=true").count();
+  check("page 1 shows «1 / 2»", (await welcome.locator(".indicator").innerText()) === "1 / 2");
   const steps = await welcome.locator(".steps li").allInnerTexts();
-  check("welcome shows the 3 steps", steps.length === 3 && /Откройте любой товар/.test(steps[0]) && /Нажмите «Отслеживать цену»/.test(steps[1]) && /сообщим, когда она упадёт/.test(steps[2]), steps);
-  check("sample button opens a real store product", (await welcome.locator("a.pill.primary").getAttribute("href")).startsWith("https://www.wildberries.ru/catalog/"));
-  check("sharing is OFF by default on the welcome page", !(await welcome.locator("#share").isChecked()));
+  check("page 1 keeps the 3 steps", steps.length === 3 && /Откройте любой товар/.test(steps[0]) && /Нажмите «Отслеживать цену»/.test(steps[1]) && /сообщим, когда она упадёт/.test(steps[2]), steps);
+  check("page 1 has «Далее», «Пропустить» and the sample button", (await welcome.getByRole("button", { name: "Далее" }).isVisible()) && (await welcome.getByRole("button", { name: "Пропустить" }).first().isVisible()) && (await welcome.locator("a.pill", { hasText: "Открыть пример товара" }).isVisible()));
+  check("sample button opens a real store product", (await welcome.locator("a.pill", { hasText: "Открыть пример товара" }).getAttribute("href")).startsWith("https://www.wildberries.ru/catalog/"));
+  check("page 1 has no sharing switch (only one switch exists, on page 2)", (await visible("input[role=switch]")) === 0 && (await welcome.locator("input[role=switch]").count()) === 1);
+  check("no «Назад» on page 1", (await visible(".back")) === 0);
+
+  await welcome.getByRole("button", { name: "Далее" }).click();
+  check("page 2 shows «2 / 2» and the title «История цены»", (await welcome.locator(".indicator").innerText()) === "2 / 2" && (await welcome.locator("h1:visible").innerText()) === "История цены");
+  const paras = await welcome.locator(".text p").allInnerTexts();
+  check("page 2 text is exactly the agreed copy", JSON.stringify(paras) === JSON.stringify([
+    "История цены начинается с того момента, как вы начали отслеживать товар.",
+    "Если включить обмен ценами, вы поможете улучшить расширение: собранные цены помогают показывать историю, даже если вы только что добавили товар.",
+    "Отправляются только магазин, номер товара и цена. Никаких личных данных. Отключить можно в любой момент в настройках."]), paras);
+  check("page 2: switch «Делиться ценами» is OFF by default", (await welcome.locator(".switch-row").innerText()).trim() === "Делиться ценами" && !(await welcome.locator("#share").isChecked()));
+  check("page 2 has «Назад», «Готово» and «Пропустить»", (await welcome.getByRole("button", { name: "Назад" }).isVisible()) && (await welcome.getByRole("button", { name: "Готово" }).isVisible()) && (await welcome.getByRole("button", { name: "Пропустить" }).first().isVisible()));
+  check("opening the pages and looking at the switch made no request to the API", env.api.posts.length === 0 && env.api.gets.length === 0, { p: env.api.posts.length, g: env.api.gets.length });
+  await welcome.screenshot({ path: "results/shots/25-welcome-page2.png" });
+
   await welcome.locator(".switch-row").click(); await sleep(300);
-  check("the switch on the welcome page turns sharing on", (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === true);
-  await welcome.locator(".switch-row").click(); await sleep(300);
-  check("and off again", (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === false);
-  await welcome.close();
+  check("the switch turns the shared setting on (same key as Settings)", (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === true);
+  await env.sw.evaluate(() => chrome.storage.sync.set({ sharedHistory: false })); await sleep(300);
+  check("a change made elsewhere (Settings) shows up in the switch", !(await welcome.locator("#share").isChecked()));
+  await welcome.getByRole("button", { name: "Назад" }).click();
+  check("«Назад» returns to page 1 (1 / 2)", (await welcome.locator(".indicator").innerText()) === "1 / 2" && (await welcome.locator(".steps").isVisible()));
+  await welcome.getByRole("button", { name: "Далее" }).click();
+  check("the switch keeps its state when moving between pages", !(await welcome.locator("#share").isChecked()));
+  await welcome.locator(".switch-row").click(); await sleep(200);
+  await welcome.getByRole("button", { name: "Готово" }).click();
+  await sleep(600);
+  check("«Готово» saves the choice and closes the welcome tab", welcome.isClosed() && (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === true);
+  await env.sw.evaluate(() => chrome.storage.sync.remove("sharedHistory"));
+
+  // «Пропустить» on page 1 and on page 2: same ending as «Готово», sharing stays off
+  for (const onPage2 of [false, true]) {
+    const w = await env.ctx.newPage(); await w.goto(`chrome-extension://${env.extId}/welcome.html`); await w.waitForSelector(".steps");
+    if (onPage2) await w.getByRole("button", { name: "Далее" }).click();
+    await w.getByRole("button", { name: "Пропустить" }).locator("visible=true").click(); await sleep(400);
+    check(`«Пропустить» on page ${onPage2 ? 2 : 1} saves "off" and leaves sharing off`, (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === false);
+    await env.sw.evaluate(() => chrome.storage.sync.remove("sharedHistory")); await w.close().catch(() => {});
+  }
+  // English strings
+  await sync({ language: "en" });
+  const we = await env.ctx.newPage(); await we.goto(`chrome-extension://${env.extId}/welcome.html`); await we.waitForSelector(".steps");
+  await we.getByRole("button", { name: "Next" }).click();
+  check("English: page 2 title, switch and buttons", (await we.locator("h1:visible").innerText()) === "Price history" && (await we.locator(".switch-row").innerText()).trim() === "Share prices" && (await we.getByRole("button", { name: "Back" }).isVisible()) && (await we.getByRole("button", { name: "Done" }).isVisible()));
+  await we.close(); await sync({ language: "ru" });
 }
 
 const posts = () => env.api.posts;
