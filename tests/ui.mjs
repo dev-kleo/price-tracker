@@ -323,5 +323,23 @@ check("settings has the AliExpress row with an enable button", (await p5.locator
 await p5.screenshot({ path: path.join(SHOTS, "18-settings-aliexpress.png") });
 await env5.close();
 
+// ---- 13. one-tap RU/EN language button ------------------------------------------------------------------------------------------------
+const env6 = await launch();
+await env6.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
+const p6 = await env6.ctx.newPage(); await p6.setViewportSize({ width: 420, height: 600 });
+await p6.goto(`chrome-extension://${env6.extId}/popup.html`); await p6.waitForSelector(".lang-btn"); await sleep(500);
+check("header shows a language button labelled with the other language (EN)", (await p6.locator(".lang-btn").first().innerText()) === "EN" && (await p6.locator(".lang-btn").first().getAttribute("aria-label")) === "Переключить на английский");
+check("the button is at least 40px tall", (await p6.locator(".lang-btn").first().boundingBox()).height >= 39.5);
+await p6.screenshot({ path: path.join(SHOTS, "23-lang-button-ru.png") });
+await p6.locator(".lang-btn").first().click(); await sleep(500);
+check("one tap switches the whole interface to English", (await p6.locator("h1.title").innerText()) === "Products" && (await p6.locator(".tab").first().innerText()).includes("Products") && (await p6.locator(".lang-btn").first().innerText()) === "RU");
+check("the choice is saved for the next open and for the page buttons", (await env6.sw.evaluate(() => chrome.storage.sync.get("language"))).language === "en");
+await p6.screenshot({ path: path.join(SHOTS, "24-lang-button-en.png") });
+await p6.locator(".tab", { hasText: "Folders" }).click(); await sleep(400);
+check("the button is on every tab and keeps the language", (await p6.locator(".lang-btn").first().innerText()) === "RU" && (await p6.locator("h1.title").innerText()) === "Folders");
+await p6.locator(".lang-btn").first().click(); await sleep(500);
+check("tap again: back to Russian", (await p6.locator("h1.title").innerText()) === "Папки" && (await p6.locator(".lang-btn").first().innerText()) === "EN");
+await env6.close();
+
 const failed = finish();
 process.exit(failed ? 1 : 0);

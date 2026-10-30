@@ -226,7 +226,7 @@ function productsTab() {
   clear.hidden = !state.q;
   search.addEventListener("input", debounce(() => { state.q = search.value; clear.hidden = !state.q; renderList(); }, 120));
   const nodes = [
-    h("div", { class: "topbar" }, h("span", { class: "status-line", role: "status" }, status), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget))),
+    h("div", { class: "topbar" }, h("span", { class: "status-line", role: "status" }, status), topActions()),
     h("h1", { class: "title" }, t().appTitle),
     ...banners(), savingsCard(), sharedCard(), rateCard(),
     h("div", { class: "searchrow" }, h("label", { class: "field" }, icon("search", "icon field-icon"), search, clear), roundButton("filter", t().filtersBtn, openFilterSheet)),
@@ -304,7 +304,7 @@ function foldersTab() {
     ...state.folders.map((f) => folderRow(f.name, state.products.filter((p) => p.folderId === f.id).length, () => openFolder(f.id))),
     folderRow(t().folderNone, nones, () => openFolder("none"))];
   return [
-    h("div", { class: "topbar" }, h("span", { class: "status-line" }), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget))),
+    h("div", { class: "topbar" }, h("span", { class: "status-line" }), topActions()),
     h("h1", { class: "title" }, t().foldersTitle),
     h("div", { class: "pills-row" }, h("button", { class: "pill tint", type: "button", onclick: () => openFolderSheet(null) }, t().newFolderBtn)),
     group(...rows),
@@ -379,7 +379,7 @@ function alertsTab() {
     h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.title), h("span", { class: "row-cap" }, isTargetReached(p) ? t().targetReachedCap : t().targetLeftCap(money(Math.max(0, p.currentPrice - p.targetPrice))))),
     h("span", { class: "row-end" }, h("span", { class: "row-price num" }, money(p.targetPrice))));
   return [
-    h("div", { class: "topbar" }, h("span", { class: "status-line" }), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget))),
+    h("div", { class: "topbar" }, h("span", { class: "status-line" }), topActions()),
     h("h1", { class: "title" }, t().alertsTitle),
     sectionTitle(t().secNotify),
     group(
@@ -724,6 +724,18 @@ document.addEventListener("fullscreenchange", () => { document.querySelectorAll(
 window.addEventListener("resize", debounce(() => { if (document.fullscreenElement) redrawCharts(); }, 150));
 
 /* ===================================================================== settings */
+
+/* ---- one-tap language switch (Russian <-> English) in the header; Settings has the same control ---- */
+async function setLanguage(id) {
+  state.lang = id === "en" ? "en" : "ru"; setLang(state.lang); document.documentElement.lang = state.lang;
+  try { await chrome.storage.sync.set({ language: state.lang }); } catch { /* ignore */ }
+  renderTabbar(); renderRoot(); for (const sc of [...stack]) sc.render?.();
+}
+function langButton() {
+  const to = state.lang === "ru" ? "en" : "ru";
+  return h("button", { class: "pill tint small lang-btn", type: "button", title: t().langSwitch, "aria-label": t().langSwitch, lang: to, onclick: () => setLanguage(to) }, to.toUpperCase());
+}
+const topActions = () => h("div", { class: "top-actions" }, langButton(), roundButton("more", t().ariaMore, (e) => openMore(e.currentTarget)));
 /* ---- shared price history (opt-in) and first-run states ---- */
 const SUPPORTED_URL = /^https:\/\/(?:(?:www\.)?(?:ozon|wildberries|aliexpress)\.ru|market\.yandex\.ru)\//;
 async function detectTab() {
@@ -786,7 +798,7 @@ function openSettings() {
     const s = state.settings;
     const themeSeg = segmented({ label: t().theme, value: state.theme, onChange: async (id) => { applyTheme(id); await saveSettings({ theme: id }); },
       items: [["auto", t().themeAuto], ["light", t().themeLight], ["dark", t().themeDark]].map(([id, text]) => ({ id, text })) });
-    const langSeg = segmented({ label: t().language, value: state.lang, onChange: async (id) => { state.lang = id; setLang(id); document.documentElement.lang = id; await chrome.storage.sync.set({ language: id }); renderTabbar(); renderRoot(); stack.at(-1)?.render(); },
+    const langSeg = segmented({ label: t().language, value: state.lang, onChange: (id) => setLanguage(id),
       items: [{ id: "ru", text: "Русский" }, { id: "en", text: "English" }] });
     const field = (label, control) => h("div", { class: "row row-field" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, label)), h("span", { class: "row-end grow" }, control));
     return [

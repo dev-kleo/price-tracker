@@ -68,6 +68,8 @@ button.pressed:not(.row), .tab.pressed, .seg-item.pressed { transform: scale(var
 .section-title { color: var(--muted); font-size: var(--fs-caption); font-weight: var(--fw-medium); text-transform: none; padding: var(--sp-5) var(--sp-2) var(--sp-2); }
 .warn-text { color: var(--warn-ink); }
 .topbar { display: flex; align-items: center; justify-content: space-between; min-height: var(--hit); padding-top: var(--sp-2); }
+.top-actions { display: flex; align-items: center; gap: var(--sp-2); }
+.lang-btn { min-width: var(--hit); padding: 0 var(--sp-3); background: var(--card); letter-spacing: 0.02em; }
 .status-line { color: var(--muted); font-size: var(--fs-caption); }
 .icon { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
