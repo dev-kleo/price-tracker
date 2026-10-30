@@ -30,11 +30,16 @@ const stores = el("div", "stores");
 [["ozon", "Ozon"], ["wb", "WB"], ["ym", "YM"], ["ae", "AE"]].forEach(([c, n]) => stores.append(Object.assign(el("span", `chip ${c}`, n), { title: n })));
 const card1 = el("section", "card"); card1.append(steps);
 
+/* onboarding video: purely decorative, so a missing or unplayable file just removes it and the page works as before */
+const video = Object.assign(document.createElement("video"), { className: "intro-video", src: "assets/price-tracker-onboarding.mp4", poster: "assets/price-tracker-poster.jpg", autoplay: true, muted: true, loop: true, playsInline: true, preload: "auto" });
+video.setAttribute("muted", ""); video.setAttribute("aria-hidden", "true"); video.tabIndex = -1;
+video.addEventListener("error", () => video.remove());
+
 const finish = async () => { await chrome.storage.sync.set({ [KEY]: input.checked }); window.close(); }; // same for «Пропустить» and «Готово»
 const sample = Object.assign(el("a", "pill tint", t.welcomeSample), { href: SAMPLE, target: "_blank", rel: "noopener noreferrer" });
 const h1a = Object.assign(el("h1", "", t.welcomeTitle), { tabIndex: -1 });
 const page1 = el("div", "page");
-page1.append(h1a, el("p", "lead", t.welcomeLead), card1, stores,
+page1.append(h1a, el("p", "lead", t.welcomeLead), video, card1, stores,
   (() => { const a = el("div", "actions"); a.append(btn("pill primary", t.welcomeNext, () => show(2)), sample, btn("pill tint skip", t.welcomeSkip, finish)); return a; })(),
   el("p", "note", t.welcomeAeNote));
 

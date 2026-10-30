@@ -21,6 +21,17 @@ if (welcome) {
   check("page 1 has «Далее», «Пропустить» and the sample button", (await welcome.getByRole("button", { name: "Далее" }).isVisible()) && (await welcome.getByRole("button", { name: "Пропустить" }).first().isVisible()) && (await welcome.locator("a.pill", { hasText: "Открыть пример товара" }).isVisible()));
   check("sample button opens a real store product", (await welcome.locator("a.pill", { hasText: "Открыть пример товара" }).getAttribute("href")).startsWith("https://www.wildberries.ru/catalog/"));
   check("page 1 has no sharing switch (only one switch exists, on page 2)", (await visible("input[role=switch]")) === 0 && (await welcome.locator("input[role=switch]").count()) === 1);
+  const vid = await welcome.evaluate(() => { const v = document.querySelector("video.intro-video"); const c = document.querySelector(".steps"); return v && { muted: v.muted, loop: v.loop, autoplay: v.autoplay, inline: v.playsInline, poster: v.getAttribute("poster"), src: v.getAttribute("src"), above: !!(v.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING), w: v.getBoundingClientRect().width, cw: document.querySelector(".wrap").getBoundingClientRect().width }; });
+  check("onboarding video: muted, loop, autoplay, playsinline, poster, above the steps, fills the column", vid && vid.muted && vid.loop && vid.autoplay && vid.inline && vid.poster === "assets/price-tracker-poster.jpg" && vid.src === "assets/price-tracker-onboarding.mp4" && vid.above && Math.abs(vid.w - vid.cw) < 2, vid);
+  const files = await welcome.evaluate(async () => (await Promise.all(["assets/price-tracker-onboarding.mp4", "assets/price-tracker-poster.jpg"].map((u) => fetch(u).then((r) => r.status)))));
+  check("video and poster are packaged and load from the extension", files.every((x) => x === 200), files);
+  if (await welcome.evaluate(() => !!document.createElement("video").canPlayType('video/mp4; codecs="avc1.42E01E"'))) {
+    await sleep(1500);
+    check("video is playing", await welcome.evaluate(() => { const v = document.querySelector("video.intro-video"); return v ? !v.paused && v.currentTime > 0 : false; }));
+  } else console.log("note: this Chromium has no H.264, playback not checked (Chrome has it)");
+  await welcome.evaluate(() => document.querySelector("video.intro-video").dispatchEvent(new Event("error")));
+  check("if the video fails, it is removed and the steps still show", (await welcome.locator("video").count()) === 0 && (await welcome.locator(".steps li").count()) === 3);
+  await welcome.reload(); await welcome.waitForSelector(".steps li");
   check("no «Назад» on page 1", (await visible(".back")) === 0);
 
   await welcome.getByRole("button", { name: "Далее" }).click();
