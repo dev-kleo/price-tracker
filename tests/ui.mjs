@@ -280,28 +280,34 @@ check("all unavailable: no savings card, row is muted and struck", (await p3.loc
 check("edge data: no errors", errs3.filter((e) => !/ERR_NAME_NOT_RESOLVED/.test(e)).length === 0, errs3.slice(0, 3));
 await env3.close();
 
-// ---- 11. review prompt ---------------------------------------------------------------------------------------------------------------
+// ---- 11. review prompt (3+ products, 2+ days, once) ---------------------------------------------------------------------------------------------------------------
 const env4 = await launch();
 await env4.setSync({ useFetch: false, notificationsEnabled: false, language: "ru", sharedHistory: false });
 const rp = ["8200001", "8200002", "8200003"].map((id, i) => product(id, `Отзыв ${i}`, { currentPrice: 800 }));
 await seedInto(env4, { products: rp, history: rp.flatMap((p) => hist(p.id, [40, 10], [1000, 800])) });
 const p4 = await env4.ctx.newPage(); await p4.setViewportSize({ width: 420, height: 600 });
 await p4.goto(`chrome-extension://${env4.extId}/popup.html`); await p4.waitForSelector(".row.product"); await sleep(400);
-check("review prompt hidden in the first days", (await p4.locator(".rate").count()) === 0);
-await env4.sw.evaluate((t) => chrome.storage.local.set({ firstRunAt: t }), NOW - 8 * DAY);
+check("review prompt hidden when installed today (3 products)", (await p4.locator(".rate").count()) === 0);
+await env4.sw.evaluate((t) => chrome.storage.local.set({ firstRunAt: t }), NOW - 3 * DAY);
 await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(500);
-check("review prompt shown after a week with real savings", (await p4.locator(".rate .rate-title").innerText()) === "Нравится расширение?");
+check("review prompt shown: exact text, «Оценить», «Позже», ×, no star count", (await p4.locator(".rate .caption").innerText()) === "Нравится расширение? Оцените его в Chrome Web Store — это помогает нам расти." && (await p4.locator(".rate .pill.primary").innerText()) === "Оценить" && (await p4.locator(".rate .pill.tint").innerText()) === "Позже" && (await p4.locator(".rate .rate-x").count()) === 1 && !/★|звёзд|star/i.test(await p4.locator(".rate").innerText()));
 await p4.screenshot({ path: path.join(SHOTS, "16-review-prompt.png") });
-await p4.locator(".rate .pill", { hasText: "Да" }).click(); await sleep(300);
-check("«Да» offers the review link", (await p4.locator(".rate a.pill").count()) === 1);
 await p4.locator(".rate .pill", { hasText: "Позже" }).click(); await sleep(300);
 await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
-check("«Позже» hides it for 30 days", (await p4.locator(".rate").count()) === 0);
-await env4.sw.evaluate(() => chrome.storage.local.set({ rateHiddenUntil: 0 }));
+check("«Позже» hides it forever", (await p4.locator(".rate").count()) === 0 && (await env4.sw.evaluate(() => chrome.storage.local.get("rateDone"))).rateDone === true);
+await env4.sw.evaluate(() => chrome.storage.local.set({ rateDone: false }));
 await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
-await p4.locator(".rate .pill", { hasText: "Не очень" }).click(); await sleep(300);
+await p4.locator(".rate .rate-x").click(); await sleep(300);
 await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
-check("an answer is remembered and never asked again", (await p4.locator(".rate").count()) === 0 && (await env4.sw.evaluate(() => chrome.storage.local.get("rateDone"))).rateDone === true);
+check("× hides it forever", (await p4.locator(".rate").count()) === 0 && (await env4.sw.evaluate(() => chrome.storage.local.get("rateDone"))).rateDone === true);
+await env4.sw.evaluate(() => chrome.storage.local.set({ rateDone: false }));
+await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
+const popPromise = env4.ctx.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+await p4.locator(".rate .pill.primary").click();
+const rp2 = await popPromise;
+check("«Оценить» opens the Web Store reviews tab", !!rp2 && /^https:\/\/(chrome\.google\.com\/webstore|chromewebstore\.google\.com)\/detail\//.test(rp2.url()) && rp2.url().includes(env4.extId) && rp2.url().endsWith("/reviews"), rp2 && rp2.url());
+await sleep(300); await p4.reload(); await p4.waitForSelector(".row.product"); await sleep(400);
+check("«Оценить» hides it forever", (await p4.locator(".rate").count()) === 0 && (await env4.sw.evaluate(() => chrome.storage.local.get("rateDone"))).rateDone === true);
 await env4.close();
 
 // ---- 12. AliExpress in the popup: store name, variant row, enable button -------------------------------------------------------------

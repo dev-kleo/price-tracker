@@ -1,0 +1,13 @@
+import { shouldShowRate, reviewUrl } from "../assets/rate.js";
+import assert from "node:assert/strict";
+const DAY = 864e5, now = 1e12, base = { trackedCount: 3, firstRunAt: now - 2 * DAY, now, done: false };
+assert.equal(shouldShowRate(base), true, "3 products, exactly 2 days");
+assert.equal(shouldShowRate({ ...base, trackedCount: 0 }), false, "fresh install, 0 products");
+assert.equal(shouldShowRate({ ...base, trackedCount: 2 }), false, "2 products");
+assert.equal(shouldShowRate({ ...base, firstRunAt: now - 1 * DAY }), false, "installed yesterday");
+assert.equal(shouldShowRate({ ...base, firstRunAt: now }), false, "installed today");
+assert.equal(shouldShowRate({ ...base, firstRunAt: 0 }), false, "no install time");
+assert.equal(shouldShowRate({ ...base, firstRunAt: undefined }), false, "storage read failed");
+assert.equal(shouldShowRate({ ...base, done: true }), false, "already dismissed");
+assert.equal(reviewUrl("abc"), "https://chrome.google.com/webstore/detail/abc/reviews");
+console.log("rate-logic: ok");

@@ -184,7 +184,7 @@ const NEW = {
     langSwitch: "Переключить на английский",
     storeAe: "AliExpress", secStores: "Магазины", aeRow: "AliExpress", aeEnable: "Включить AliExpress", aeEnabled: "Включён", aeDisable: "Отключить", aeOn: "Включить",
     aeHint: "Нужен доступ к aliexpress.ru. Браузер запросит его сейчас и только для этого сайта.", aeGranted: "AliExpress включён. Откройте страницу товара и нажмите «Отслеживать цену».", aeDenied: "Доступ к AliExpress не выдан", aeOff: "AliExpress отключён", rowVariant: "Вариант",
-    rateTitle: "Нравится расширение?", rateYes: "Да", rateNo: "Не очень", rateLater: "Позже", rateYesTitle: "Рады, что помогает", rateAsk: "Отзыв в Chrome Web Store помогает другим найти расширение.", rateGo: "Оставить отзыв ★★★★★", rateThanks: "Спасибо за ответ!",
+    rateText: "Нравится расширение? Оцените его в Chrome Web Store — это помогает нам расти.", rateGo: "Оценить", rateLater: "Позже", rateClose: "Закрыть",
     checking: "Проверяем…", checkingAll: "Проверяем цены…", exitFs: "Свернуть",
   },
   en: {
@@ -233,7 +233,7 @@ const NEW = {
     langSwitch: "Switch to Russian",
     storeAe: "AliExpress", secStores: "Stores", aeRow: "AliExpress", aeEnable: "Enable AliExpress", aeEnabled: "Enabled", aeDisable: "Disable", aeOn: "Enable",
     aeHint: "Needs access to aliexpress.ru. The browser asks for it now, for this site only.", aeGranted: "AliExpress enabled. Open a product page and press “Track price”.", aeDenied: "AliExpress access was not granted", aeOff: "AliExpress disabled", rowVariant: "Variant",
-    rateTitle: "Enjoying the extension?", rateYes: "Yes", rateNo: "Not really", rateLater: "Later", rateYesTitle: "Glad it helps", rateAsk: "A review in the Chrome Web Store helps others find it.", rateGo: "Leave a review ★★★★★", rateThanks: "Thanks for your answer!",
+    rateText: "Enjoying the extension? Rate it in the Chrome Web Store — it helps us grow.", rateGo: "Rate", rateLater: "Later", rateClose: "Close",
     checking: "Checking…", checkingAll: "Checking prices…", exitFs: "Exit",
   },
 };

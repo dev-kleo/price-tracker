@@ -2,6 +2,7 @@ import { STR } from "./i18n.js";
 import { setLang, money, pct, dateShort, dateLong, dateTime, minutesAgo, highlight } from "./format.js";
 import { Spring, drag, project, rubber, clamp, pressFeedback, elastic, countUp, openSheet, openPopover, toast, reduced } from "./motion.js";
 import { renderChart } from "./charts.js";
+import { shouldShowRate, reviewUrl } from "./rate.js";
 import { h, icon, roundButton, segmented, switchRow, numberRow, group, sectionTitle, emptyState, skeletonRows } from "./ui.js";
 
 /* =============================================================== constants */
@@ -21,7 +22,7 @@ const state = {
   products: [], insights: null, folders: [], health: {}, settings: { ...DEFAULTS },
   q: "", seg: "all", sort: "recent", store: "all", status: "any", refreshingAll: false,
   share: { firstRunAt: 0, dismissed: false, hiddenUntil: 0 },
-  rate: { done: false, hiddenUntil: 0, step: "ask" }, ae: false, shared: undefined, tabKind: "unknown",
+  rate: { done: false }, ae: false, shared: undefined, tabKind: "unknown",
 };
 const t = () => STR[state.lang];
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload }).then((res) => {
@@ -837,8 +838,8 @@ async function refreshAll() {
 const SHARE_MIN_PRODUCTS = 2, SHARE_MIN_DAYS = 3, SHARE_SNOOZE_DAYS = 60;
 async function loadShareState() {
   try {
-    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil", "rateDone", "rateHiddenUntil"]);
-    state.rate.done = s.rateDone === true; state.rate.hiddenUntil = Number(s.rateHiddenUntil) || 0;
+    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil", "rateDone"]);
+    state.rate.done = s.rateDone === true;
     let first = Number(s.firstRunAt);
     if (!Number.isFinite(first) || first <= 0) { first = Date.now(); await chrome.storage.local.set({ firstRunAt: first }); }
     state.share = { firstRunAt: first, dismissed: s.shareDismissed === true, hiddenUntil: Number(s.shareHiddenUntil) || 0 };
@@ -850,29 +851,18 @@ function shareVisible() {
 }
 async function snoozeShare() { state.share.hiddenUntil = Date.now() + SHARE_SNOOZE_DAYS * DAY; try { await chrome.storage.local.set({ shareHiddenUntil: state.share.hiddenUntil }); } catch { /* ignore */ } }
 async function dismissShare() { state.share.dismissed = true; try { await chrome.storage.local.set({ shareDismissed: true }); } catch { /* ignore */ } renderRoot(); }
-/* Review prompt: only after a week of use, with 3+ products and real savings; one tap away, never repeated once answered. */
-const RATE_MIN_DAYS = 7, RATE_MIN_PRODUCTS = 3, RATE_SNOOZE_DAYS = 30;
-function rateVisible() {
-  const r = state.rate, now = Date.now(), first = state.share.firstRunAt;
-  return state.shared !== undefined && !r.done && first > 0 && now - first >= RATE_MIN_DAYS * DAY && now >= r.hiddenUntil && state.products.length >= RATE_MIN_PRODUCTS && (state.insights?.summary?.drop30Total ?? 0) > 0;
-}
-async function saveRate(patch) { Object.assign(state.rate, patch); try { await chrome.storage.local.set({ rateDone: state.rate.done, rateHiddenUntil: state.rate.hiddenUntil }); } catch { /* ignore */ } }
+/* Review prompt: one banner, once. Any of «Оценить», «Позже» or × sets rateDone and it never returns. */
+const rateVisible = () => shouldShowRate({ trackedCount: state.products.length, firstRunAt: state.share.firstRunAt, done: state.rate.done });
+async function closeRate() { state.rate.done = true; try { await chrome.storage.local.set({ rateDone: true }); } catch { /* ignore */ } renderRoot(); }
 function rateCard() {
   if (!rateVisible()) return null;
-  const r = state.rate, close = async (patch) => { await saveRate(patch); renderRoot(); };
-  const later = h("button", { class: "pill tint small", type: "button", onclick: () => close({ hiddenUntil: Date.now() + RATE_SNOOZE_DAYS * DAY }) }, t().rateLater);
-  if (r.step === "thanks") return h("section", { class: "card rate", role: "status" }, h("div", { class: "rate-title" }, t().rateThanks));
-  if (r.step === "yes") {
-    return h("section", { class: "card rate" }, h("div", { class: "rate-title" }, t().rateYesTitle), h("p", { class: "caption" }, t().rateAsk),
-      h("div", { class: "pills-row" },
-        h("a", { class: "pill primary", href: `${STORE_URL}/reviews`, target: "_blank", rel: "noopener noreferrer", onclick: async (e) => { e.preventDefault(); chrome.tabs.create({ url: `${STORE_URL}/reviews` }); r.step = "thanks"; await saveRate({ done: true }); renderRoot(); } }, t().rateGo),
-        later));
-  }
-  return h("section", { class: "card rate" }, h("div", { class: "rate-title" }, t().rateTitle),
+  return h("section", { class: "card rate", role: "region", "aria-label": t().rateText },
+    h("div", { class: "rate-head" },
+      h("p", { class: "caption" }, t().rateText),
+      h("button", { class: "rate-x", type: "button", "aria-label": t().rateClose, onclick: closeRate }, "×")),
     h("div", { class: "pills-row" },
-      h("button", { class: "pill primary", type: "button", onclick: () => { r.step = "yes"; renderRoot(); } }, t().rateYes),
-      h("button", { class: "pill tint", type: "button", onclick: async () => { r.step = "thanks"; await saveRate({ done: true }); renderRoot(); } }, t().rateNo),
-      later));
+      h("button", { class: "pill primary small", type: "button", onclick: () => { try { chrome.tabs.create({ url: reviewUrl(chrome.runtime.id) }); } catch { /* ignore */ } closeRate(); } }, t().rateGo),
+      h("button", { class: "pill tint small", type: "button", onclick: closeRate }, t().rateLater)));
 }
 
 function shareLine() {

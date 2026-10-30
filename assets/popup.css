@@ -232,6 +232,9 @@ body.tab .sheet { left: 50%; right: auto; width: min(100%, 32rem); margin-left: 
 /* ---- review prompt ---------------------------------------------------------------------------- */
 .rate { margin: var(--sp-4) 0; }
 .rate-title { font-size: var(--fs-headline); font-weight: var(--fw-semibold); letter-spacing: var(--ls-headline); }
+.rate-head { display: flex; align-items: flex-start; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.rate-head .caption { flex: 1; margin: 0; }
+.rate-x { flex: none; width: var(--hit); height: var(--hit); margin: calc(var(--sp-2) * -1) calc(var(--sp-2) * -1) 0 0; font-size: var(--fs-headline); line-height: 1; color: var(--muted); border-radius: var(--r-pill); }
 .rate .pills-row { padding-bottom: 0; }
 
 /* ---- first-run: store chips ---- */
