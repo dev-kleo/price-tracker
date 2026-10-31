@@ -326,6 +326,16 @@ await p5.locator(".topbar .round").first().click(); await sleep(400);
 check("menu offers «Включить AliExpress» while access is not granted", (await p5.locator(".menu-item", { hasText: "Включить AliExpress" }).count()) === 1);
 await p5.locator(".menu-item", { hasText: "Настройки" }).click(); await sleep(800);
 check("settings has the AliExpress row with an enable button", (await p5.locator(".row", { hasText: "AliExpress" }).locator("button", { hasText: "Включить" }).count()) === 1);
+const manifestVersion = await p5.evaluate(() => chrome.runtime.getManifest().version);
+check("settings footer shows the manifest version, a store link and the auto-update hint", (await p5.locator(".version .caption").first().innerText()).startsWith(`Версия ${manifestVersion}`) && (await p5.locator(".version a").getAttribute("href")).startsWith("https://chromewebstore.google.com/detail/") && (await p5.locator(".version a").getAttribute("target")) === "_blank" && (await p5.locator(".version a").getAttribute("rel")) === "noopener" && (await p5.locator(".version a").innerText()) === "Проверить обновления" && (await p5.locator(".version .caption").nth(1).innerText()) === "Расширения из Chrome Web Store обновляются автоматически." && !(await p5.locator(".version").innerText()).includes("Обновлено с"));
+await p5.locator(".back").last().click(); await sleep(700);
+await env5.sw.evaluate(() => chrome.storage.local.set({ previousVersion: "2.5.0" }));
+await p5.reload(); await p5.waitForSelector(".row.product"); await sleep(600);
+await p5.locator(".topbar .round").first().click(); await sleep(400);
+await p5.locator(".menu-item", { hasText: "Настройки" }).click(); await sleep(800);
+check("footer reads «Версия 2.6» from the manifest", manifestVersion === "2.6" && /^Версия 2\.6( ·|$)/.test(await p5.locator(".version .caption").first().innerText()), manifestVersion);
+check("first launch after an update shows «Обновлено с 2.5.0» and clears it", (await p5.locator(".version .caption").first().innerText()).includes("Обновлено с 2.5.0") && !(await env5.sw.evaluate(() => chrome.storage.local.get("previousVersion"))).previousVersion);
+await p5.screenshot({ path: path.join(SHOTS, "26-settings-version.png") });
 await p5.screenshot({ path: path.join(SHOTS, "18-settings-aliexpress.png") });
 await env5.close();
 

@@ -208,7 +208,7 @@ await env.sw.evaluate(() => chrome.storage.sync.remove("sharedHistory"));
 const prod = await env.ctx.newPage(); env.serving.wb = "available"; await prod.goto(SITES.wb.url, { waitUntil: "load" }); await env.rpc("WB_TRACK", { snapshot: await env.snapshotOf("wb") }); await prod.close();
 const ask = await env.ctx.newPage(); await ask.setViewportSize({ width: 420, height: 600 });
 await ask.goto(`chrome-extension://${env.extId}/popup.html`); await ask.waitForSelector(".row.product"); await sleep(400);
-check("undecided users see the one-time question", (await ask.locator(".rate-title", { hasText: "Общая история цен" }).count()) === 1);
+check("undecided users see the one-time question", (await ask.locator(".rate-title", { hasText: "Делиться ценами" }).count()) === 1);
 await ask.screenshot({ path: "results/shots/21-shared-card.png" });
 await ask.locator(".card.rate .pill", { hasText: "Не сейчас" }).click(); await sleep(400);
 check("«Не сейчас» is remembered as OFF and the card goes away", (await env.sw.evaluate(() => chrome.storage.sync.get("sharedHistory"))).sharedHistory === false && (await ask.locator(".card.rate").count()) === 0);

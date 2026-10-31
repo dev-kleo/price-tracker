@@ -794,6 +794,14 @@ function pickImportFile() {
   });
   document.body.append(file); file.click(); file.remove();
 }
+/* quiet footer in Settings: version from the manifest (never hardcoded), store link, and "Updated from" on the first launch after an update */
+function versionFooter() {
+  const v = chrome.runtime.getManifest().version, from = state.prevVersion && state.prevVersion !== v ? state.prevVersion : "";
+  return h("div", { class: "version" },
+    h("p", { class: "caption" }, `${t().versionLabel} ${v}`, from ? ` · ${t().updatedFrom} ${from}` : "", " · ",
+      h("a", { href: STORE_URL, target: "_blank", rel: "noopener" }, t().checkUpdates)),
+    h("p", { class: "caption" }, t().autoUpdateHint));
+}
 function openSettings() {
   push({ kind: "settings", refresh: false, backLabel: t().appTitle, build: () => {
     const s = state.settings;
@@ -818,6 +826,7 @@ function openSettings() {
       group(h("button", { class: "row action", type: "button", onclick: async () => { try { download(`price-tracker-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await send("EXPORT_DATA"))); } catch { /* ignore */ } } }, h("span", { class: "row-title" }, t().export)),
         h("button", { class: "row action", type: "button", onclick: pickImportFile }, h("span", { class: "row-title" }, t().import))),
       h("p", { class: "hint-text" }, t().exportHint),
+      versionFooter(),
     ];
   } });
 }
@@ -838,7 +847,8 @@ async function refreshAll() {
 const SHARE_MIN_PRODUCTS = 2, SHARE_MIN_DAYS = 3, SHARE_SNOOZE_DAYS = 60;
 async function loadShareState() {
   try {
-    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil", "rateDone"]);
+    const s = await chrome.storage.local.get(["firstRunAt", "shareDismissed", "shareHiddenUntil", "rateDone", "previousVersion"]);
+    if (s.previousVersion) { state.prevVersion = String(s.previousVersion); chrome.storage.local.remove("previousVersion").catch(() => {}); }
     state.rate.done = s.rateDone === true;
     let first = Number(s.firstRunAt);
     if (!Number.isFinite(first) || first <= 0) { first = Date.now(); await chrome.storage.local.set({ firstRunAt: first }); }

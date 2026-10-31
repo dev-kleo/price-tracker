@@ -1,10 +1,10 @@
-# Privacy disclosures for v2.6.0 (shared price history)
+# Privacy disclosures for v2.6 (shared price history)
 
 This is a drafting aid, not legal advice. Check every statement against how your server really behaves, especially logging and retention.
 
 ## What the extension now sends
 
-Only when the user has turned on "Общая история цен" (off by default; asked on the welcome page, once in the popup for existing users, and in Settings):
+Only when the user has turned on "Делиться ценами" ("Share prices") (off by default; asked on the welcome page, once in the popup for existing users, and in Settings):
 
 - `store`: one of `ozon`, `wb`, `ym`, `ali`
 - `product_id`: the marketplace product id (for AliExpress `item-sku`)
@@ -14,7 +14,7 @@ When: a product page is open, the price was parsed and the product is in stock; 
 
 Not sent: user id, account, cookies (`credentials: "omit"`), referrer, page URLs, titles, images, the tracked list, folders, settings.
 
-What the server unavoidably sees: the IP address and request time of every request. State in the policy whether your function logs them, for how long, and that you do not link them to anything.
+What the server unavoidably sees: the IP address and request time of every request. The policy states that the IP address is received but not stored.
 
 ## Chrome Web Store: Privacy practices tab
 
@@ -27,21 +27,21 @@ What the server unavoidably sees: the IP address and request time of every reque
 
 ## Privacy policy text to add (Russian)
 
-> **Общая история цен (по желанию).** По умолчанию расширение ничего не отправляет на наш сервер. Если вы включили «Общая история цен» (на приветственной странице или в Настройках), расширение, когда вы открываете страницу товара Ozon, Wildberries, Яндекс Маркета или AliExpress, отправляет на сервер, которым управляет разработчик, три значения: магазин, идентификатор товара и цену в рублях. Также оно запрашивает с сервера историю цены этого товара для графика. Мы используем эти данные только для построения общей истории цен. Мы не передаём их третьим лицам, не продаём и не используем для рекламы.
+> **Делиться ценами (по желанию).** По умолчанию расширение ничего не отправляет на наш сервер. Если вы включили «Делиться ценами» (на приветственной странице или в Настройках), расширение, когда вы открываете страницу товара Ozon, Wildberries, Яндекс Маркета или AliExpress, отправляет на сервер, которым управляет разработчик, три значения: магазин (ozon, wb, ym, ali), идентификатор товара и цену в рублях. Время записи добавляет сервер. Также расширение запрашивает с сервера историю цены этого товара для графика. Мы используем эти данные, чтобы показывать историю цен, собранную другими пользователями, и улучшать отслеживание цен. Мы не продаём их и не используем для рекламы.
 >
-> Расширение не отправляет ваш список товаров, адреса страниц, названия, аккаунт, cookie и другие личные данные. Данные не связаны с конкретным пользователем: идентификатора пользователя нет. Сервер, как любой веб-сервис, получает IP-адрес и время запроса. [Укажите, ведётся ли журнал, как долго хранится и кто имеет доступ.] Данные о ценах хранятся [срок хранения].
+> Расширение не отправляет ваш список товаров, адреса страниц, названия, аккаунт, имя, историю браузера, cookie и другие личные данные. Идентификатора пользователя нет. Сервер, как любой веб-сервис, получает IP-адрес и время каждого запроса, но не сохраняет IP-адрес. Данные хранятся в Yandex Cloud (YDB), Россия. Записи о ценах хранятся без ограничения срока, пока работает сервис; они не содержат личных данных.
 >
-> Вы можете отключить передачу в любой момент в Настройках. После отключения новые данные не отправляются. Отправленные ранее значения цен не содержат сведений о вас и не могут быть привязаны к вам, поэтому удалить их по вашему запросу нельзя. По вопросам: [контакт].
+> Вы можете отключить передачу в любой момент в Настройках (переключатель «Делиться ценами»). После отключения вся отправка прекращается. Отправленные ранее значения цен не содержат сведений о вас и не могут быть привязаны к вам, поэтому удалить их по отдельности нельзя. Разработчик: Abhishek Dey (независимый разработчик), deyintelligence.com. По вопросам о конфиденциальности: coding.cleo@gmail.com.
 
 ## Same text in English
 
-> **Shared price history (optional).** By default the extension sends nothing to our server. If you turn on "Shared price history" (on the welcome page or in Settings), then when you open a product page on Ozon, Wildberries, Yandex Market or AliExpress, the extension sends three values to a server operated by the developer: the store, the product identifier and the price in rubles. It also requests the shared price history of that product to draw the chart. We use this data only to build a shared price history. We do not share it with third parties, sell it or use it for advertising.
+> **Share prices (optional).** By default the extension sends nothing to our server. If you turn on "Share prices" (on the welcome page or in Settings), then when you open a product page on Ozon, Wildberries, Yandex Market or AliExpress, the extension sends three values to a server operated by the developer: the store (ozon, wb, ym, ali), the product identifier and the price in rubles. The server adds the time of the record. The extension also requests the shared price history of that product to draw the chart. We use this data to show price history collected from other users and to improve price tracking. We do not sell it and do not use it for advertising.
 >
-> The extension does not send your tracked list, page addresses, titles, account, cookies or any other personal data. The data is not tied to a user: there is no user identifier. Like any web service the server receives the IP address and the time of a request. [State whether requests are logged, for how long and who has access.] Price data is kept for [retention period].
+> The extension does not send your tracked list, page addresses, titles, account, name, browsing history, cookies or any other personal data. There is no user identifier. Like any web service the server receives the IP address and the time of each request, but it does not store the IP address. Data is stored in Yandex Cloud (YDB), Russia. Price records are kept without a time limit while the service runs; they contain no personal data.
 >
-> You can turn sharing off at any time in Settings. After that no new data is sent. Prices sent earlier contain nothing about you and cannot be linked to you, so they cannot be deleted on request. Questions: [contact].
+> You can turn sharing off at any time in Settings (the "Share prices" switch). After that all sending stops. Prices shared earlier contain nothing about you and cannot be linked to you, so they cannot be deleted individually. Developer: Abhishek Dey (independent developer), deyintelligence.com. Privacy questions: coding.cleo@gmail.com.
 
-## Two things to settle before publishing
+## To keep in mind
 
-- Fill the bracketed lines (logging, retention, contact). They depend on your server.
+- The logging, retention and contact lines are filled from the developer's facts (IP not stored; records kept without a time limit; contact coding.cleo@gmail.com). Re-check them if the server changes.
 - Data quality: Ozon and Wildberries prices differ by region and delivery point. One shared series per product mixes them, and the API's 30%-300% guard only rejects extreme values. If this matters, consider region in a future API version.

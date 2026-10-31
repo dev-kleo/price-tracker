@@ -4,7 +4,7 @@
 
 Отслеживание цен на Ozon, Wildberries, Яндекс Маркете и AliExpress. История цен, графики, уведомления о снижении. Ваш список товаров хранится только в вашем браузере.
 
-Откройте страницу товара, нажмите «Отслеживать цену», и расширение будет само проверять цену в фоне. Без регистрации. Общая история цен включается только по вашему согласию.
+Откройте страницу товара, нажмите «Отслеживать цену», и расширение будет само проверять цену в фоне. Без регистрации. Опция «Делиться ценами» включается только по вашему согласию.
 
 МАГАЗИНЫ
 • Ozon
@@ -52,13 +52,14 @@ AliExpress
 • Экспорт и импорт всех данных в файл JSON.
 • Русский и английский язык.
 
-ОБЩАЯ ИСТОРИЯ ЦЕН (по желанию)
-• Выключена, пока вы сами её не включите на приветственной странице или в Настройках.
-• Если включить, расширение отправляет на наш сервер только магазин, ID товара и цену (в рублях) со страницы товара, которую вы открыли, и показывает на графике историю, собранную другими. Не отправляются ваш список товаров, адреса страниц, аккаунт и личные данные. Цена по карте Ozon и с Яндекс Пэй не отправляется.
-• Выключается в любой момент.
+ДЕЛИТЬСЯ ЦЕНАМИ (по желанию)
+• Выключено, пока вы сами не включите «Делиться ценами» на приветственной странице или в Настройках.
+• Если включить, расширение отправляет на наш сервер только магазин (ozon, wb, ym, ali), ID товара и цену (в рублях) со страницы товара, которую вы открыли, и показывает на графике историю, собранную другими. Время записи добавляет сервер. Не отправляются ваш список товаров, адреса страниц, аккаунт, имя, история браузера и другие личные данные. IP-адрес сервер получает, но не сохраняет. Цена по карте Ozon и с Яндекс Пэй не отправляется.
+• Данные хранятся в Yandex Cloud (YDB), Россия, используются для показа истории цен других пользователей и улучшения отслеживания цен, не продаются и не используются для рекламы.
+• Выключается в любой момент: отправка полностью прекращается. Уже отправленные цены анонимны и не связаны с вами, поэтому удалить их по отдельности нельзя.
 
 ПРИВАТНОСТЬ
-• Ваши товары, папки, история и настройки хранятся локально в браузере. Они не отправляются, кроме трёх значений общей истории, если вы её включили.
+• Ваши товары, папки, история и настройки хранятся локально в браузере. Они не отправляются, кроме трёх значений (магазин, ID товара, цена), если вы включили «Делиться ценами».
 • Разрешения нужны только для работы: фоновые проверки (alarms), уведомления, хранение данных, чтение страниц поддерживаемых магазинов. Доступ к AliExpress запрашивается отдельно и только по вашему действию.
 • Расширение не связано с Ozon, Wildberries, Яндекс Маркетом и AliExpress.
 
@@ -70,7 +71,7 @@ AliExpress
 
 Price tracker for Ozon, Wildberries, Yandex Market and AliExpress. Price history, charts and price-drop alerts. Your product list stays in your browser.
 
-Open a product page, press "Track price", and the extension checks the price in the background. No account. Shared price history is only on if you agree.
+Open a product page, press "Track price", and the extension checks the price in the background. No account. "Share prices" is on only if you agree.
 
 STORES
 • Ozon
@@ -118,13 +119,14 @@ CONVENIENCE
 • Export and import all data as JSON.
 • Russian and English.
 
-SHARED PRICE HISTORY (optional)
-• Off until you turn it on, on the welcome page or in Settings.
-• When on, the extension sends our server only the store, the product ID and the price (in rubles) from a product page you open, and shows on the chart the history collected from others. Your product list, page addresses, account and personal data are not sent. The Ozon card price and the Yandex Pay price are not sent.
-• You can turn it off at any time.
+SHARE PRICES (optional)
+• Off until you turn on "Share prices", on the welcome page or in Settings.
+• When on, the extension sends our server only the store (ozon, wb, ym, ali), the product ID and the price (in rubles) from a product page you open, and shows on the chart the history collected from others. The server adds the time of the record. Your product list, page addresses, account, name, browsing history and other personal data are not sent. The server receives your IP address but does not store it. The Ozon card price and the Yandex Pay price are not sent.
+• Data is stored in Yandex Cloud (YDB), Russia, used to show price history from other users and to improve price tracking, and is not sold or used for ads.
+• You can turn it off at any time: all sending stops. Prices already shared are anonymous and not linked to you, so they cannot be deleted individually.
 
 PRIVACY
-• Your products, folders, history and settings are stored locally in your browser. They are not sent, except the three values of the shared history if you turned it on.
+• Your products, folders, history and settings are stored locally in your browser. They are not sent, except the three values (store, product ID, price) if you turned on "Share prices".
 • Permissions are used only to work: background checks (alarms), notifications, storage, and reading pages of the supported stores. AliExpress access is requested separately and only when you ask for it.
 • Not affiliated with Ozon, Wildberries, Yandex Market or AliExpress.
 
